@@ -4,7 +4,8 @@
   --gold:#CE8A2B; --gold-soft:#FBEFD7; --ok:#2F8F5B;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{margin:0; height:100%;}
+html{-webkit-text-size-adjust:100%; text-size-adjust:100%;}
+html,body{margin:0; height:100%; touch-action:manipulation; overscroll-behavior:none;}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
   background:var(--bg); color:var(--ink);
