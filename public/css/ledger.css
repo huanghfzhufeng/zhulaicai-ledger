@@ -35,10 +35,24 @@ main{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 14p
 .sheet-head span{font-size:16px; font-weight:600;}
 .sheet-close{width:32px; height:32px; flex:none; border:none; background:var(--bg); border-radius:50%; color:var(--muted); font-size:15px; cursor:pointer; touch-action:manipulation;}
 .sheet-close:active{background:var(--line);}
+.sheet-actions{display:flex; align-items:center; gap:8px;}
+.sheet-edit{border:none; background:var(--bg); color:var(--gold); font-size:14px; font-weight:600; padding:7px 14px; border-radius:9px; cursor:pointer; touch-action:manipulation;}
+.sheet-edit:active{background:var(--line);}
+.sheet-add{display:flex; gap:8px; margin-bottom:12px;}
+.sheet-add input{flex:1; min-width:0; height:46px; border:1.5px solid var(--gold); border-radius:11px; padding:0 12px; font-size:15px; background:var(--bg); color:var(--ink);}
+.sheet-add input:focus{outline:none;}
+.sheet-add button{flex:none; border:none; border-radius:11px; padding:0 16px; font-size:15px; font-weight:600; cursor:pointer; touch-action:manipulation;}
+#catAddSave{background:var(--red); color:#fff;}
+#catAddCancel{background:var(--bg); color:var(--muted);}
 .sheet-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:9px;}
-.sheet-cat{min-height:54px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:13px; font-size:14px; font-weight:500; line-height:1.22; padding:6px 4px; cursor:pointer; transition:.12s; touch-action:manipulation; user-select:none;}
+.sheet-cat{position:relative; min-height:54px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); border-radius:13px; font-size:14px; font-weight:500; line-height:1.22; padding:6px 4px; cursor:pointer; transition:.12s; touch-action:manipulation; user-select:none;}
 .sheet-cat:active{transform:scale(.95);}
 .sheet-cat.on{background:var(--red); color:#fff; border-color:var(--red); box-shadow:0 4px 10px rgba(197,61,46,.25);}
+.sheet-cat.addtile{border-style:dashed; border-color:var(--gold); color:var(--gold); font-weight:600;}
+.sheet-cat .del-x{display:none;}
+.sheet-grid.editing .sheet-cat:not(.addtile){border-color:var(--red); color:var(--red);}
+.sheet-grid.editing .sheet-cat:not(.addtile) .del-x{display:flex; position:absolute; top:-7px; right:-7px; width:21px; height:21px; border-radius:50%; background:var(--red); color:#fff; font-size:12px; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.25);}
+.sheet-grid.editing .addtile{opacity:.35;}
 
 .amount{background:var(--surface); border:1px solid var(--line); border-radius:15px; padding:13px 16px 15px; margin-bottom:12px;}
 .amount .pick{font-size:13px; height:20px; color:var(--muted); margin-bottom:4px;}

@@ -12,6 +12,7 @@ const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 let entries = [];
 let saving = false;
 let isOwner = true; // 老板看利润/收入；员工只看经营开支
+let editingCats = false; // 类别管理"编辑"模式（仅老板）
 
 // ----- formatting helpers -----
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -41,8 +42,19 @@ const curCats = () => CATS[entryType];
 
 function buildCatSheet(){
   const grid=document.getElementById('catSheetGrid');
-  grid.innerHTML=curCats().map((c,i)=>`<button class="sheet-cat" data-i="${i}" type="button">${c}</button>`).join('');
-  grid.querySelectorAll('.sheet-cat').forEach(b=>{ b.onclick=()=>{ selectedCat=curCats()[+b.dataset.i]; syncCatBtn(); closeCatSheet(); }; });
+  let html=curCats().map((c,i)=>`<button class="sheet-cat" data-i="${i}" type="button"><span class="del-x">✕</span>${c}</button>`).join('');
+  if(isOwner) html+='<button class="sheet-cat addtile" type="button" data-add="1">＋ 添加</button>';
+  grid.innerHTML=html;
+  grid.classList.toggle('editing', editingCats);
+  grid.querySelectorAll('.sheet-cat').forEach(b=>{
+    b.onclick=()=>{
+      if(b.dataset.add){ openCatAdd(); return; }
+      const name=curCats()[+b.dataset.i];
+      if(editingCats){ delCat(name); return; }
+      selectedCat=name; syncCatBtn(); closeCatSheet();
+    };
+  });
+  syncCatBtn();
 }
 function syncCatBtn(){
   document.getElementById('catBtnText').textContent=selectedCat||'请选择类别';
@@ -53,11 +65,44 @@ function setEntryType(t){
   if(t===entryType) return;
   entryType=t;
   document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
-  selectedCat = (t==='income') ? '营业额' : null; // 收入默认选营业额，省一步
-  buildCatSheet(); syncCatBtn();
+  selectedCat = (t==='income') ? (CATS.income[0]||null) : null; // 收入默认选第一个(营业额)
+  buildCatSheet();
 }
 function openCatSheet(){ document.getElementById('catSheet').classList.remove('hidden'); }
-function closeCatSheet(){ document.getElementById('catSheet').classList.add('hidden'); }
+function closeCatSheet(){
+  document.getElementById('catSheet').classList.add('hidden');
+  if(editingCats){ editingCats=false; const e=document.getElementById('catEdit'); if(e) e.textContent='编辑'; document.getElementById('catSheetGrid').classList.remove('editing'); }
+  closeCatAdd();
+}
+
+// ----- 类别管理（仅老板）-----
+function toggleCatEdit(){
+  editingCats=!editingCats;
+  const e=document.getElementById('catEdit'); if(e) e.textContent=editingCats?'完成':'编辑';
+  document.getElementById('catSheetGrid').classList.toggle('editing', editingCats);
+  closeCatAdd();
+}
+function openCatAdd(){ document.getElementById('catAdd').classList.remove('hidden'); document.getElementById('catNewName').focus(); }
+function closeCatAdd(){ const a=document.getElementById('catAdd'); if(a) a.classList.add('hidden'); const n=document.getElementById('catNewName'); if(n) n.value=''; }
+async function saveCatAdd(){
+  const name=document.getElementById('catNewName').value.trim();
+  if(!name){ toast('请输入类别名称'); return; }
+  try{
+    const lists=await api.categories.add(entryType, name);
+    if(lists){ CATS.expense=lists.expense||CATS.expense; CATS.income=lists.income||CATS.income; }
+    selectedCat=name; closeCatAdd(); buildCatSheet(); closeCatSheet();
+    toast('已添加「'+name+'」');
+  }catch(e){ if(!handleAuthErr(e)) toast(e.message||'添加失败'); }
+}
+async function delCat(name){
+  if(!confirm('删除「'+name+'」？已记的账不受影响')) return;
+  try{
+    const lists=await api.categories.remove(entryType, name);
+    if(lists){ CATS.expense=lists.expense||[]; CATS.income=lists.income||[]; }
+    if(selectedCat===name) selectedCat=null;
+    buildCatSheet();
+  }catch(e){ if(!handleAuthErr(e)) toast(e.message||'删除失败'); }
+}
 function buildPad(){
   const keys=['1','2','3','4','5','6','7','8','9','.','0','del'];
   document.getElementById('pad').innerHTML=keys.map(k=>k==='del'?`<button class="key del" data-k="del" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-6 8 6 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><path d="m15 9-6 6M9 9l6 6"/></svg></button>`:`<button class="key" data-k="${k}">${k}</button>`).join('');
@@ -224,12 +269,18 @@ function bindEvents(){
   document.getElementById('catBtn').onclick=openCatSheet;
   document.getElementById('catSheetClose').onclick=closeCatSheet;
   document.getElementById('catSheet').onclick=e=>{ if(e.target.id==='catSheet') closeCatSheet(); };
+  const catEdit=document.getElementById('catEdit'); if(catEdit) catEdit.onclick=toggleCatEdit;
+  document.getElementById('catAddSave').onclick=saveCatAdd;
+  document.getElementById('catAddCancel').onclick=closeCatAdd;
+  document.getElementById('catNewName').addEventListener('keydown', e=>{ if(e.key==='Enter') saveCatAdd(); });
 }
 
 function applyRoleUI(){
-  // 员工没有「收入/支出」切换，只记支出
+  // 员工没有「收入/支出」切换、也不能管理类别
   const seg=document.getElementById('typeSeg');
   if(seg) seg.style.display = isOwner ? '' : 'none';
+  const edit=document.getElementById('catEdit');
+  if(edit) edit.classList.toggle('hidden', !isOwner);
   if(!isOwner) entryType='expense';
 }
 

@@ -3,9 +3,12 @@ import { config } from './config.js';
 import { closeDb, driverName } from './db/index.js';
 import { deleteExpiredSessions } from './auth/sessions.js';
 import { ensureAccounts } from './auth/seed.js';
+import { PRESET_CATEGORIES } from './lib/categories.js';
+import { seedPresetsIfEmpty } from './models/categories.js';
 
-// Make sure the preset accounts exist before we start serving requests.
+// Make sure the preset accounts + category list exist before serving requests.
 const accounts = await ensureAccounts();
+seedPresetsIfEmpty(PRESET_CATEGORIES);
 
 const app = createApp();
 const server = app.listen(config.port, config.host, () => {

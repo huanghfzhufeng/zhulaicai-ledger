@@ -1,5 +1,5 @@
 import { ApiError } from './http.js';
-import { isValidCategory, isValidType } from './categories.js';
+import { isValidType } from './categories.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_AMOUNT_CENTS = 1_000_000_000; // 一千万元封顶，防溢出/误输入
@@ -27,8 +27,8 @@ export function validateEntryInput(body) {
   if (!DATE_RE.test(date) || !isRealDate(date)) {
     throw new ApiError(400, '日期格式不正确');
   }
-  if (!isValidCategory(type, category)) {
-    throw new ApiError(400, '类别不存在');
+  if (!category || category.length > 20) {
+    throw new ApiError(400, '类别不正确');
   }
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new ApiError(400, '金额必须为正数');

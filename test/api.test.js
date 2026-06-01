@@ -13,8 +13,11 @@ process.env.STAFF_PASSWORD = 'clerk123';
 const { createApp } = await import('../src/app.js');
 const { closeDb } = await import('../src/db/index.js');
 const { ensureAccounts } = await import('../src/auth/seed.js');
+const { seedPresetsIfEmpty } = await import('../src/models/categories.js');
+const { PRESET_CATEGORIES } = await import('../src/lib/categories.js');
 
 await ensureAccounts();
+seedPresetsIfEmpty(PRESET_CATEGORIES);
 
 const app = createApp();
 const server = app.listen(0);
@@ -103,4 +106,29 @@ test('staff is restricted to operational expenses (no income/profit/wages)', asy
 
   // 删除老板的收入条目（id 应为 1）-> 对员工是 404（看不到也碰不到）
   assert.equal((await call('DELETE', '/api/entries/1', { j })).status, 404);
+});
+
+test('owner can add/remove categories; staff cannot; history is preserved', async () => {
+  const owner = await login('boss', 'boss123');
+  const staff = await login('clerk', 'clerk123');
+
+  // 老板加自定义支出「水果」
+  const added = await call('POST', '/api/categories', { body: { type: 'expense', name: '水果' }, j: owner.j });
+  assert.equal(added.status, 201);
+  assert.ok(added.data.expense.includes('水果'));
+  // 重复 -> 409
+  assert.equal((await call('POST', '/api/categories', { body: { type: 'expense', name: '水果' }, j: owner.j })).status, 409);
+
+  // 员工能看到并能用「水果」（经营类），但不能管理类别
+  const staffCats = await call('GET', '/api/categories', { j: staff.j });
+  assert.ok(staffCats.data.expense.includes('水果'));
+  assert.equal((await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-02', cat: '水果', amt: 20 }, j: staff.j })).status, 201);
+  assert.equal((await call('POST', '/api/categories', { body: { type: 'expense', name: '偷加' }, j: staff.j })).status, 403);
+  assert.equal((await call('DELETE', '/api/categories', { body: { type: 'expense', name: '水果' }, j: staff.j })).status, 403);
+
+  // 老板删「水果」：从清单移除，但已记的账不受影响
+  assert.equal((await call('DELETE', '/api/categories', { body: { type: 'expense', name: '水果' }, j: owner.j })).status, 200);
+  assert.ok(!(await call('GET', '/api/categories', { j: owner.j })).data.expense.includes('水果'));
+  assert.equal((await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-02', cat: '水果', amt: 1 }, j: owner.j })).status, 400);
+  assert.ok((await call('GET', '/api/entries', { j: owner.j })).data.entries.some((e) => e.cat === '水果'));
 });

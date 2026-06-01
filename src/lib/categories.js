@@ -1,62 +1,25 @@
 /**
- * Categories for 朱来财大排档, by entry type and role.
- * Single source of truth — the frontend fetches the role-appropriate set from
- * /api/categories.
+ * Preset categories — seeded into the `categories` table on first run.
+ * After that the table is the source of truth (owner can add/remove via the UI).
  *
- * 经营类 (operational): day-to-day purchases — staff (员工) may record these.
- * 老板专属 (owner-only) expense categories: 人工/房租/水电/其他 (fixed costs).
- * Income is owner-only. This is how profit & wages stay hidden from staff.
+ * owner_only=1 → 仅老板可见（工资/房租/水电/其他、以及全部收入）。
+ * owner_only=0 → 经营类（员工也能用来记），含老板后加的自定义支出。
  */
-export const OPERATIONAL_CATEGORIES = Object.freeze([
-  '淡村采购',
-  '一次性用品',
-  '烧烤冻品进货',
-  '烧烤雪花牛肉',
-  '煤气',
-  '植物油',
-  '白切酱油花生油',
-  '半成品鱼片',
-  '饮料',
-  '大米',
-  '配料',
-  '鸭头鸭脚',
-  '员工菜',
+const OPERATIONAL = [
+  '淡村采购', '一次性用品', '烧烤冻品进货', '烧烤雪花牛肉', '煤气', '植物油',
+  '白切酱油花生油', '半成品鱼片', '饮料', '大米', '配料', '鸭头鸭脚', '员工菜',
+];
+const OWNER_EXPENSE = ['人工', '房租', '水电', '其他'];
+const INCOME = ['营业额', '其他收入'];
+
+export const PRESET_CATEGORIES = Object.freeze([
+  ...OPERATIONAL.map((name, i) => ({ type: 'expense', name, owner_only: 0, sort: i })),
+  ...OWNER_EXPENSE.map((name, i) => ({ type: 'expense', name, owner_only: 1, sort: 100 + i })),
+  ...INCOME.map((name, i) => ({ type: 'income', name, owner_only: 1, sort: i })),
 ]);
-
-const OWNER_ONLY_EXPENSE = Object.freeze(['人工', '房租', '水电', '其他']);
-
-export const EXPENSE_CATEGORIES = Object.freeze([
-  ...OPERATIONAL_CATEGORIES,
-  ...OWNER_ONLY_EXPENSE,
-]);
-
-export const INCOME_CATEGORIES = Object.freeze(['营业额', '其他收入']);
 
 export const ROLES = Object.freeze(['owner', 'staff']);
 
-const SETS = {
-  expense: new Set(EXPENSE_CATEGORIES),
-  income: new Set(INCOME_CATEGORIES),
-};
-const OPERATIONAL_SET = new Set(OPERATIONAL_CATEGORIES);
-
 export function isValidType(type) {
   return type === 'expense' || type === 'income';
-}
-
-export function isValidCategory(type, value) {
-  return typeof value === 'string' && SETS[type]?.has(value) === true;
-}
-
-/** Staff may only record operational expenses (no income, no fixed costs). */
-export function isStaffExpenseCategory(value) {
-  return typeof value === 'string' && OPERATIONAL_SET.has(value);
-}
-
-/** The category lists a given role is allowed to see/use. */
-export function categoriesForRole(role) {
-  if (role === 'staff') {
-    return { expense: OPERATIONAL_CATEGORIES, income: [] };
-  }
-  return { expense: EXPENSE_CATEGORIES, income: INCOME_CATEGORIES };
 }

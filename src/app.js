@@ -2,11 +2,11 @@ import path from 'node:path';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { config } from './config.js';
-import { ok, fail, ApiError } from './lib/http.js';
-import { categoriesForRole } from './lib/categories.js';
-import { attachUser, requireAuth } from './auth/middleware.js';
+import { fail, ApiError } from './lib/http.js';
+import { attachUser } from './auth/middleware.js';
 import { authRouter } from './routes/auth.js';
 import { entriesRouter } from './routes/entries.js';
+import { categoriesRouter } from './routes/categories.js';
 
 export function createApp() {
   const app = express();
@@ -21,9 +21,7 @@ export function createApp() {
   app.use('/api', attachUser);
   app.use('/api/auth', authRouter);
   app.use('/api/entries', entriesRouter);
-  app.get('/api/categories', requireAuth, (req, res) =>
-    ok(res, categoriesForRole(req.user.role)),
-  );
+  app.use('/api/categories', categoriesRouter);
   app.use('/api', (_req, res) => fail(res, 404, '接口不存在'));
 
   // ----- Static frontend -----

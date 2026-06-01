@@ -83,7 +83,18 @@
 
   <div class="sheet-overlay hidden" id="catSheet">
     <div class="sheet">
-      <div class="sheet-head"><span>选择类别</span><button class="sheet-close" id="catSheetClose" type="button" aria-label="关闭">✕</button></div>
+      <div class="sheet-head">
+        <span>选择类别</span>
+        <span class="sheet-actions">
+          <button class="sheet-edit hidden" id="catEdit" type="button">编辑</button>
+          <button class="sheet-close" id="catSheetClose" type="button" aria-label="关闭">✕</button>
+        </span>
+      </div>
+      <div class="sheet-add hidden" id="catAdd">
+        <input id="catNewName" type="text" maxlength="12" placeholder="新类别名称，例如 水果" autocapitalize="off" autocomplete="off">
+        <button id="catAddSave" type="button">保存</button>
+        <button id="catAddCancel" type="button">取消</button>
+      </div>
       <div class="sheet-grid" id="catSheetGrid"></div>
     </div>
   </div>

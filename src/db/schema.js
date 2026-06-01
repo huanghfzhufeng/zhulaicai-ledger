@@ -33,6 +33,17 @@ CREATE TABLE IF NOT EXISTS entries (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_entries_user_date ON entries(user_id, entry_date);
+
+-- 可编辑的"记账类别清单"。entries 存的是类别名字符串，不依赖这张表，
+-- 所以删类别只影响"可选清单"，不影响已记的账。owner_only=1 表示仅老板可见(工资/房租)。
+CREATE TABLE IF NOT EXISTS categories (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  type       TEXT    NOT NULL,
+  name       TEXT    NOT NULL,
+  owner_only INTEGER NOT NULL DEFAULT 0,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(type, name)
+);
 `;
 
 export function applySchema(db) {

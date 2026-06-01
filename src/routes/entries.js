@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ok, ApiError } from '../lib/http.js';
 import { validateEntryInput } from '../lib/validation.js';
-import { isStaffExpenseCategory } from '../lib/categories.js';
+import { isStaffExpenseCategory, categoryExists } from '../models/categories.js';
 import { requireAuth } from '../auth/middleware.js';
 import { listAll, getById, createEntry, deleteEntry } from '../models/entries.js';
 
@@ -22,6 +22,7 @@ entriesRouter.get('/', (req, res) => {
 
 entriesRouter.post('/', (req, res) => {
   const { type, date, category, amountCents } = validateEntryInput(req.body);
+  if (!categoryExists(type, category)) throw new ApiError(400, '类别不存在');
   if (isStaff(req) && !(type === 'expense' && isStaffExpenseCategory(category))) {
     throw new ApiError(403, '员工只能记日常经营支出');
   }

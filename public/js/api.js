@@ -51,5 +51,7 @@ export const api = {
   },
   categories: {
     list: () => request('GET', '/api/categories'),
+    add: (type, name) => request('POST', '/api/categories', { type, name }),
+    remove: (type, name) => request('DELETE', '/api/categories', { type, name }),
   },
 };

@@ -23,3 +23,9 @@ export function requireAuth(req, res, next) {
   if (!req.user) return fail(res, 401, '未登录或登录已过期');
   next();
 }
+
+/** Owner-only actions (e.g. managing categories). Assumes requireAuth ran first. */
+export function requireOwner(req, res, next) {
+  if (req.user?.role !== 'owner') return fail(res, 403, '仅老板可操作');
+  next();
+}
