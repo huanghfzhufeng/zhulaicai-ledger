@@ -3,8 +3,8 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { config } from './config.js';
 import { ok, fail, ApiError } from './lib/http.js';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from './lib/categories.js';
-import { attachUser } from './auth/middleware.js';
+import { categoriesForRole } from './lib/categories.js';
+import { attachUser, requireAuth } from './auth/middleware.js';
 import { authRouter } from './routes/auth.js';
 import { entriesRouter } from './routes/entries.js';
 
@@ -21,8 +21,8 @@ export function createApp() {
   app.use('/api', attachUser);
   app.use('/api/auth', authRouter);
   app.use('/api/entries', entriesRouter);
-  app.get('/api/categories', (_req, res) =>
-    ok(res, { expense: EXPENSE_CATEGORIES, income: INCOME_CATEGORIES }),
+  app.get('/api/categories', requireAuth, (req, res) =>
+    ok(res, categoriesForRole(req.user.role)),
   );
   app.use('/api', (_req, res) => fail(res, 404, '接口不存在'));
 

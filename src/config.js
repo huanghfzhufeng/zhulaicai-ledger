@@ -16,9 +16,12 @@ function int(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-// Internal tool: one shared, preset account (no public registration).
-// Credentials come from the environment; this default exists only for first run.
+// Internal tool: preset accounts (no public registration). Two roles:
+// owner (老板, sees everything incl. profit/wages) and staff (员工, records
+// operational expenses only). Credentials come from the environment; these
+// defaults exist only for first run.
 const DEFAULT_PASSWORD = 'zhulaicai888';
+const DEFAULT_STAFF_PASSWORD = 'yuangong888';
 
 export const config = Object.freeze({
   rootDir,
@@ -34,8 +37,13 @@ export const config = Object.freeze({
   trustProxy: bool(process.env.TRUST_PROXY, false),
   sessionTtlMs: int(process.env.SESSION_TTL_DAYS, 30) * 24 * 60 * 60 * 1000,
 
-  // The single shared login for the shop. Change via LEDGER_USERNAME / LEDGER_PASSWORD.
+  // 老板账号（看得到全部 + 利润/工资）。改 LEDGER_USERNAME / LEDGER_PASSWORD。
   ledgerUsername: (process.env.LEDGER_USERNAME ?? 'zhulaicai').trim(),
   ledgerPassword: process.env.LEDGER_PASSWORD ?? DEFAULT_PASSWORD,
   usingDefaultPassword: !process.env.LEDGER_PASSWORD,
+
+  // 员工账号（只记经营开支，看不到收入/利润/工资）。改 STAFF_USERNAME / STAFF_PASSWORD。
+  staffUsername: (process.env.STAFF_USERNAME ?? 'yuangong').trim(),
+  staffPassword: process.env.STAFF_PASSWORD ?? DEFAULT_STAFF_PASSWORD,
+  usingDefaultStaffPassword: !process.env.STAFF_PASSWORD,
 });

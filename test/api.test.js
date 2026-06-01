@@ -2,17 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 
-// Isolated in-memory DB + known fixed account. Must be set before importing the app.
+// Isolated in-memory DB + known accounts. Must be set before importing the app.
 process.env.DB_PATH = ':memory:';
 process.env.NODE_ENV = 'test';
-process.env.LEDGER_USERNAME = 'tester';
-process.env.LEDGER_PASSWORD = 'secret123';
+process.env.LEDGER_USERNAME = 'boss';
+process.env.LEDGER_PASSWORD = 'boss123';
+process.env.STAFF_USERNAME = 'clerk';
+process.env.STAFF_PASSWORD = 'clerk123';
 
 const { createApp } = await import('../src/app.js');
 const { closeDb } = await import('../src/db/index.js');
-const { ensureFixedAccount } = await import('../src/auth/seed.js');
+const { ensureAccounts } = await import('../src/auth/seed.js');
 
-await ensureFixedAccount();
+await ensureAccounts();
 
 const app = createApp();
 const server = app.listen(0);
@@ -46,17 +48,16 @@ async function call(method, path, { body, j } = {}) {
   return { status: res.status, data: payload?.data ?? null, error: payload?.error ?? null };
 }
 
-test('categories are public', async () => {
-  const res = await call('GET', '/api/categories');
-  assert.equal(res.status, 200);
-  assert.ok(res.data.expense.includes('煤气'));
-  assert.ok(res.data.expense.includes('人工'));
-  assert.ok(res.data.income.includes('营业额'));
-});
+async function login(username, password) {
+  const j = jar();
+  const res = await call('POST', '/api/auth/login', { body: { username, password }, j });
+  assert.equal(res.status, 200, `login ${username}`);
+  return { j, user: res.data.user };
+}
 
-test('me requires auth', async () => {
-  const res = await call('GET', '/api/auth/me');
-  assert.equal(res.status, 401);
+test('auth + categories require login', async () => {
+  assert.equal((await call('GET', '/api/auth/me')).status, 401);
+  assert.equal((await call('GET', '/api/categories')).status, 401);
 });
 
 test('register endpoint is gone', async () => {
@@ -64,46 +65,42 @@ test('register endpoint is gone', async () => {
   assert.equal(res.status, 404);
 });
 
-test('login + ledger lifecycle on the shared account', async () => {
-  const j = jar();
+test('owner sees everything and records income/wages', async () => {
+  const { j, user } = await login('boss', 'boss123');
+  assert.equal(user.role, 'owner');
 
-  const wrong = await call('POST', '/api/auth/login', { body: { username: 'tester', password: 'nope-wrong' }, j });
-  assert.equal(wrong.status, 401);
+  const cats = await call('GET', '/api/categories', { j });
+  assert.ok(cats.data.expense.includes('人工'));
+  assert.ok(cats.data.income.includes('营业额'));
 
-  const login = await call('POST', '/api/auth/login', { body: { username: 'tester', password: 'secret123' }, j });
-  assert.equal(login.status, 200);
-  assert.equal(login.data.user.username, 'tester');
-
-  const me = await call('GET', '/api/auth/me', { j });
-  assert.equal(me.status, 200);
-
-  const bad = await call('POST', '/api/entries', { body: { date: '2026-06-01', cat: '不存在', amt: 5 }, j });
-  assert.equal(bad.status, 400);
-
-  const created = await call('POST', '/api/entries', { body: { date: '2026-06-01', cat: '煤气', amt: 128.5 }, j });
-  assert.equal(created.status, 201);
-  assert.equal(created.data.entry.amt, 128.5);
-  assert.equal(created.data.entry.type, 'expense'); // 缺省记为支出
-  const entryId = created.data.entry.id;
+  assert.equal((await call('POST', '/api/entries', { body: { type: 'income', date: '2026-06-01', cat: '营业额', amt: 3500 }, j })).status, 201);
+  assert.equal((await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-01', cat: '人工', amt: 800 }, j })).status, 201);
+  assert.equal((await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-01', cat: '煤气', amt: 128 }, j })).status, 201);
 
   const list = await call('GET', '/api/entries', { j });
-  assert.equal(list.data.entries.length, 1);
+  assert.equal(list.data.entries.length, 3); // 收入 + 工资 + 煤气
+});
 
-  // 收入
-  const inc = await call('POST', '/api/entries', { body: { type: 'income', date: '2026-06-01', cat: '营业额', amt: 500 }, j });
-  assert.equal(inc.status, 201);
-  assert.equal(inc.data.entry.type, 'income');
-  // 收入用了支出类别 -> 400
-  const badType = await call('POST', '/api/entries', { body: { type: 'income', date: '2026-06-01', cat: '煤气', amt: 5 }, j });
-  assert.equal(badType.status, 400);
+test('staff is restricted to operational expenses (no income/profit/wages)', async () => {
+  const { j, user } = await login('clerk', 'clerk123');
+  assert.equal(user.role, 'staff');
 
-  const del = await call('DELETE', `/api/entries/${entryId}`, { j });
-  assert.equal(del.status, 200);
-  const delAgain = await call('DELETE', `/api/entries/${entryId}`, { j });
-  assert.equal(delAgain.status, 404);
+  // 类别：只有经营类，没有人工/房租，没有收入
+  const cats = await call('GET', '/api/categories', { j });
+  assert.ok(cats.data.expense.includes('煤气'));
+  assert.ok(!cats.data.expense.includes('人工'));
+  assert.deepEqual(cats.data.income, []);
 
-  const out = await call('POST', '/api/auth/logout', { j });
-  assert.equal(out.status, 200);
-  const meAfter = await call('GET', '/api/auth/me', { j });
-  assert.equal(meAfter.status, 401);
+  // 看账：拿不到老板的收入/工资，只看到经营开支（上一个测试里 owner 记的煤气）
+  const list = await call('GET', '/api/entries', { j });
+  assert.ok(list.data.entries.every((e) => e.type === 'expense' && e.cat !== '人工'));
+  assert.ok(list.data.entries.every((e) => e.cat !== '营业额'));
+
+  // 记账：收入 403、工资 403、经营支出 201
+  assert.equal((await call('POST', '/api/entries', { body: { type: 'income', date: '2026-06-01', cat: '营业额', amt: 99 }, j })).status, 403);
+  assert.equal((await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-01', cat: '人工', amt: 99 }, j })).status, 403);
+  assert.equal((await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-01', cat: '配料', amt: 30 }, j })).status, 201);
+
+  // 删除老板的收入条目（id 应为 1）-> 对员工是 404（看不到也碰不到）
+  assert.equal((await call('DELETE', '/api/entries/1', { j })).status, 404);
 });

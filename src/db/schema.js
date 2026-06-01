@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   username      TEXT    NOT NULL UNIQUE,
   password_hash TEXT    NOT NULL,
+  role          TEXT    NOT NULL DEFAULT 'owner',
   created_at    INTEGER NOT NULL
 );
 
@@ -41,8 +42,13 @@ export function applySchema(db) {
 
 /** Add columns introduced after the initial release (safe on existing data). */
 function migrate(db) {
-  const columns = db.prepare("PRAGMA table_info('entries')").all().map((c) => c.name);
-  if (!columns.includes('type')) {
+  const entryCols = db.prepare("PRAGMA table_info('entries')").all().map((c) => c.name);
+  if (!entryCols.includes('type')) {
     db.exec("ALTER TABLE entries ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
+  }
+  const userCols = db.prepare("PRAGMA table_info('users')").all().map((c) => c.name);
+  if (!userCols.includes('role')) {
+    // Existing single account becomes the owner.
+    db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'owner'");
   }
 }

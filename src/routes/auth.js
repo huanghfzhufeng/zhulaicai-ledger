@@ -13,7 +13,7 @@ export const authRouter = Router();
 // Throttle login to slow down brute-force / abuse.
 const loginLimiter = rateLimit({ windowMs: 60_000, max: 20 });
 
-const publicUser = (user) => ({ id: user.id, username: user.username });
+const publicUser = (user) => ({ id: user.id, username: user.username, role: user.role });
 
 function setSessionCookie(res, token, expiresAt) {
   res.cookie(COOKIE_NAME, token, {

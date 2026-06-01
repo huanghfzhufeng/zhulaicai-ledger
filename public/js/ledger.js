@@ -11,6 +11,7 @@ const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 
 let entries = [];
 let saving = false;
+let isOwner = true; // 老板看利润/收入；员工只看经营开支
 
 // ----- formatting helpers -----
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -112,8 +113,11 @@ function dayEntries(list){
   return items.map(e=>`<div class="entry${isIncome(e)?' income':''}"><span class="ec">${e.cat}</span><span class="ea num">${isIncome(e)?'+':''}¥${fmt(e.amt)}</span><button class="del" data-id="${e.id}" aria-label="删除">${TRASH}</button></div>`).join('');
 }
 function periodRow(key,label,o){
-  const net=round2(o.inc-o.exp);
-  return `<div class="drillrow" data-${key.k}="${key.v}"><div class="dl"><div class="dd">${label}</div><div class="io"><span class="in">收 ¥${fmt(o.inc)}</span> · 支 ¥${fmt(o.exp)}</div></div><div class="dv num">¥${fmt(net)}</div><div class="ch">›</div></div>`;
+  if(isOwner){
+    const net=round2(o.inc-o.exp);
+    return `<div class="drillrow" data-${key.k}="${key.v}"><div class="dl"><div class="dd">${label}</div><div class="io"><span class="in">收 ¥${fmt(o.inc)}</span> · 支 ¥${fmt(o.exp)}</div></div><div class="dv num">¥${fmt(net)}</div><div class="ch">›</div></div>`;
+  }
+  return `<div class="drillrow" data-${key.k}="${key.v}"><div class="dl"><div class="dd">${label}</div></div><div class="dv num">¥${fmt(o.exp)}</div><div class="ch">›</div></div>`;
 }
 function dayDrill(list){
   const m={}; list.forEach(e=>{ const o=m[e.date]=m[e.date]||{inc:0,exp:0}; if(isIncome(e))o.inc+=e.amt; else o.exp+=e.amt; });
@@ -125,25 +129,34 @@ function monthDrill(list){
 }
 
 function renderTotals(){
-  const today=todayStr(); let label='',tag='',list=[];
-  if(gran==='day'){ list=entries.filter(e=>e.date===viewDay); label=ymdLabel(viewDay); if(viewDay===today)tag='今天'; document.getElementById('totLab').textContent='当日利润'; }
-  else if(gran==='month'){ list=entries.filter(e=>e.date.slice(0,7)===viewMonth); const p=viewMonth.split('-'); label=p[0]+'年'+parseInt(p[1])+'月'; if(viewMonth===today.slice(0,7))tag='本月'; document.getElementById('totLab').textContent='本月利润'; }
-  else{ list=entries.filter(e=>e.date.slice(0,4)===viewYear); label=viewYear+'年'; if(viewYear===today.slice(0,4))tag='今年'; document.getElementById('totLab').textContent='本年利润'; }
+  const today=todayStr(); let label='',tag='',list=[],per='';
+  if(gran==='day'){ list=entries.filter(e=>e.date===viewDay); label=ymdLabel(viewDay); if(viewDay===today)tag='今天'; per='当日'; }
+  else if(gran==='month'){ list=entries.filter(e=>e.date.slice(0,7)===viewMonth); const p=viewMonth.split('-'); label=p[0]+'年'+parseInt(p[1])+'月'; if(viewMonth===today.slice(0,7))tag='本月'; per='本月'; }
+  else{ list=entries.filter(e=>e.date.slice(0,4)===viewYear); label=viewYear+'年'; if(viewYear===today.slice(0,4))tag='今年'; per='本年'; }
 
   const exp=list.filter(e=>!isIncome(e));
   const income=list.filter(isIncome).reduce((s,e)=>s+e.amt,0);
   const expense=exp.reduce((s,e)=>s+e.amt,0);
-  const profit=round2(income-expense);
-  const margin= income>0 ? Math.round(profit/income*1000)/10 : null;
-
   document.getElementById('perTxt').innerHTML=label+(tag?` <span class="curtag">${tag}</span>`:'');
-  document.getElementById('perProfit').textContent=fmt(profit);
-  document.getElementById('perIncome').textContent=fmt(income);
-  document.getElementById('perExpense').textContent=fmt(expense);
-  document.getElementById('perMargin').textContent= margin==null ? '—' : margin+'%';
+
+  const sub=document.querySelector('.bigtotal .profitsub');
+  if(isOwner){
+    const profit=round2(income-expense);
+    const margin= income>0 ? Math.round(profit/income*1000)/10 : null;
+    document.getElementById('totLab').textContent=per+'利润';
+    document.getElementById('perProfit').textContent=fmt(profit);
+    document.getElementById('perIncome').textContent=fmt(income);
+    document.getElementById('perExpense').textContent=fmt(expense);
+    document.getElementById('perMargin').textContent= margin==null ? '—' : margin+'%';
+    if(sub) sub.style.display='';
+  } else {
+    document.getElementById('totLab').textContent=per+'支出';
+    document.getElementById('perProfit').textContent=fmt(expense);
+    if(sub) sub.style.display='none';
+  }
 
   const body=document.getElementById('totalsBody');
-  if(list.length===0){ const w=gran==='day'?'这天':(gran==='month'?'这个月':'这一年'); body.innerHTML=`<div class="empty">${w}还没有记账。<br>记一笔收入和支出，就能看到利润。</div>`; return; }
+  if(list.length===0){ const w=gran==='day'?'这天':(gran==='month'?'这个月':'这一年'); const hint=isOwner?'记一笔收入和支出，就能看到利润。':''; body.innerHTML=`<div class="empty">${w}还没有记账。${hint?'<br>'+hint:''}</div>`; return; }
 
   let html='';
   if(gran==='day'){ html+=dayEntries(list); }
@@ -213,8 +226,25 @@ function bindEvents(){
   document.getElementById('catSheet').onclick=e=>{ if(e.target.id==='catSheet') closeCatSheet(); };
 }
 
+function applyRoleUI(){
+  // 员工没有「收入/支出」切换，只记支出
+  const seg=document.getElementById('typeSeg');
+  if(seg) seg.style.display = isOwner ? '' : 'none';
+  if(!isOwner) entryType='expense';
+}
+
 async function init(){
-  // Loading entries doubles as the auth guard: 401 -> redirect to login.
+  // me() 作为登录守卫 + 拿到角色
+  try{
+    const { user }=await api.auth.me();
+    isOwner = user.role !== 'staff';
+  }catch(e){
+    if(handleAuthErr(e)) return;
+    toast('加载失败，请刷新页面');
+    return;
+  }
+  applyRoleUI();
+
   try{
     const { entries:list }=await api.entries.list();
     entries=list;
@@ -227,7 +257,7 @@ async function init(){
   try{
     const { expense, income }=await api.categories.list();
     if(Array.isArray(expense)&&expense.length) CATS.expense=expense;
-    if(Array.isArray(income)&&income.length) CATS.income=income;
+    CATS.income=Array.isArray(income)?income:[];
   }catch{ /* keep fallback */ }
 
   buildCatSheet(); buildPad();

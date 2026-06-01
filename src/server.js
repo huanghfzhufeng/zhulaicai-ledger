@@ -2,10 +2,10 @@ import { createApp } from './app.js';
 import { config } from './config.js';
 import { closeDb, driverName } from './db/index.js';
 import { deleteExpiredSessions } from './auth/sessions.js';
-import { ensureFixedAccount } from './auth/seed.js';
+import { ensureAccounts } from './auth/seed.js';
 
-// Make sure the shared account exists before we start serving requests.
-const account = await ensureFixedAccount();
+// Make sure the preset accounts exist before we start serving requests.
+const accounts = await ensureAccounts();
 
 const app = createApp();
 const server = app.listen(config.port, config.host, () => {
@@ -13,9 +13,13 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`  地址: http://${config.host}:${config.port}`);
   console.log(`  数据库: ${config.dbPath} (${driverName})`);
   console.log(`  环境: ${config.nodeEnv}`);
-  console.log(`  登录账号: ${account.username}`);
+  console.log(`  老板账号: ${accounts.owner.username}`);
+  if (accounts.staff) console.log(`  员工账号: ${accounts.staff.username}`);
   if (config.usingDefaultPassword) {
-    console.log('  ⚠️  正在使用默认密码 zhulaicai888，请尽快在 .env 设置 LEDGER_PASSWORD 修改');
+    console.log('  ⚠️  老板用默认密码 zhulaicai888，请在 .env 设置 LEDGER_PASSWORD');
+  }
+  if (accounts.staff && config.usingDefaultStaffPassword) {
+    console.log('  ⚠️  员工用默认密码 yuangong888，请在 .env 设置 STAFF_PASSWORD');
   }
 });
 
