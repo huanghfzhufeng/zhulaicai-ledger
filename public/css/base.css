@@ -1,0 +1,14 @@
+:root{
+  --bg:#FBF5EC; --surface:#FFFFFF; --ink:#2B2420; --muted:#9A8C7E;
+  --line:#EADFCF; --red:#C53D2E; --red-dark:#A32E22; --red-soft:#FBE9E5;
+  --gold:#CE8A2B; --gold-soft:#FBEFD7; --ok:#2F8F5B;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  background:var(--bg); color:var(--ink);
+  display:flex; justify-content:center;
+}
+.num{font-variant-numeric:tabular-nums;}
+.hidden{display:none !important;}

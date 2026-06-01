@@ -1,0 +1,14 @@
+node_modules/
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.DS_Store
+npm-debug.log*
+
+# android build artifacts
+android-app/build/
+*.apk
+*.jks
+*.idsig

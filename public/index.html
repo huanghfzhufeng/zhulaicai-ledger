@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>朱来财大排档 · 记账</title>
+<meta name="theme-color" content="#C53D2E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="记账">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/ledger.css">
+<script src="/js/pwa.js" defer></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="coin">财</div>
+    <div class="brand"><h1>朱来财大排档</h1><p>每日开支 · 记账本</p></div>
+    <div class="todaybox"><div class="lab">今天</div><div class="val num">¥<span id="todayTotal">0</span></div></div>
+  </header>
+
+  <main id="main">
+    <section id="viewRecord">
+      <div class="daterow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span class="dtxt">日期</span>
+        <span id="todayTag" class="today-tag">今天</span>
+        <input type="date" id="dateInput">
+      </div>
+      <button class="catbtn" id="catBtn" type="button">
+        <span id="catBtnText">请选择类别</span>
+        <span class="catbtn-chev">›</span>
+      </button>
+      <div class="amount">
+        <div class="disp"><span class="yen">¥</span><span class="val zero num" id="amtVal">0</span></div>
+      </div>
+      <div class="pad" id="pad"></div>
+      <button class="save" id="saveBtn">记一笔</button>
+    </section>
+
+    <section id="viewTotals" class="hidden">
+      <div class="seg" id="granSeg">
+        <button data-g="day">按天</button>
+        <button data-g="month" class="on">按月</button>
+        <button data-g="year">按年</button>
+      </div>
+      <div class="pernav">
+        <button class="arw" id="prevP" aria-label="上一个">‹</button>
+        <div class="mtxt" id="perTxt"></div>
+        <button class="arw" id="nextP" aria-label="下一个">›</button>
+      </div>
+      <div class="bigtotal"><div class="lab" id="totLab">本月总开支</div><div class="val num">¥<span id="perTotal">0</span></div></div>
+      <div id="totalsBody"></div>
+      <button class="logout-link" id="logoutBtn" type="button">退出登录</button>
+    </section>
+  </main>
+
+  <nav>
+    <button id="tabRecord" class="on">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>记账
+    </button>
+    <button id="tabTotals">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="13" width="3" height="4"/></svg>账目
+    </button>
+  </nav>
+
+  <div class="sheet-overlay hidden" id="catSheet">
+    <div class="sheet">
+      <div class="sheet-head"><span>选择类别</span><button class="sheet-close" id="catSheetClose" type="button" aria-label="关闭">✕</button></div>
+      <div class="sheet-grid" id="catSheetGrid"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+<script type="module" src="/js/ledger.js"></script>
+</body>
+</html>

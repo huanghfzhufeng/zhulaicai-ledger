@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>登录 · 朱来财大排档</title>
+<meta name="theme-color" content="#C53D2E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="记账">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/auth.css">
+<script src="/js/pwa.js" defer></script>
+</head>
+<body>
+  <div class="auth">
+    <div class="auth-head">
+      <div class="coin">财</div>
+      <h1>朱来财大排档</h1>
+      <p>每日开支 · 记账本</p>
+    </div>
+    <div class="auth-card">
+      <form id="authForm" novalidate>
+        <div class="field">
+          <label for="username">账号</label>
+          <input id="username" name="username" autocomplete="username"
+                 autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="64">
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input id="password" name="password" type="password"
+                 autocomplete="current-password" maxlength="128">
+        </div>
+        <button class="submit" id="submitBtn" type="submit">登录</button>
+        <div class="msg" id="msg"></div>
+      </form>
+    </div>
+    <div class="tip"></div>
+  </div>
+  <script type="module" src="/js/login.js"></script>
+</body>
+</html>
