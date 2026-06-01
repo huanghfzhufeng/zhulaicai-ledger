@@ -14,8 +14,8 @@ entriesRouter.get('/', (req, res) => {
 });
 
 entriesRouter.post('/', (req, res) => {
-  const { date, category, amountCents } = validateEntryInput(req.body);
-  const entry = createEntry({ userId: req.user.id, date, category, amountCents });
+  const { type, date, category, amountCents } = validateEntryInput(req.body);
+  const entry = createEntry({ userId: req.user.id, type, date, category, amountCents });
   return ok(res, { entry }, 201);
 });
 

@@ -32,6 +32,10 @@
         <span id="todayTag" class="today-tag">今天</span>
         <input type="date" id="dateInput">
       </div>
+      <div class="typeseg" id="typeSeg">
+        <button type="button" data-t="expense" class="on">支出</button>
+        <button type="button" data-t="income">收入</button>
+      </div>
       <button class="catbtn" id="catBtn" type="button">
         <span id="catBtnText">请选择类别</span>
         <span class="catbtn-chev">›</span>
@@ -54,7 +58,15 @@
         <div class="mtxt" id="perTxt"></div>
         <button class="arw" id="nextP" aria-label="下一个">›</button>
       </div>
-      <div class="bigtotal"><div class="lab" id="totLab">本月总开支</div><div class="val num">¥<span id="perTotal">0</span></div></div>
+      <div class="bigtotal">
+        <div class="lab" id="totLab">本月利润</div>
+        <div class="val num">¥<span id="perProfit">0</span></div>
+        <div class="profitsub">
+          <span>利润率 <b id="perMargin">—</b></span>
+          <span>收入 ¥<b id="perIncome" class="num">0</b></span>
+          <span>支出 ¥<b id="perExpense" class="num">0</b></span>
+        </div>
+      </div>
       <div id="totalsBody"></div>
       <button class="logout-link" id="logoutBtn" type="button">退出登录</button>
     </section>

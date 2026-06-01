@@ -1,7 +1,11 @@
 import { api, ApiError } from './api.js';
 
-// Fallback list if /api/categories can't be reached; the server is the source of truth.
-let CATS = ['淡村采购','一次性用品','烧烤冻品进货','烧烤雪花牛肉','煤气','植物油','白切酱油花生油','半成品鱼片','饮料','大米','配料','鸭头鸭脚','员工菜'];
+// Fallback lists if /api/categories can't be reached; the server is the source of truth.
+let CATS = {
+  expense: ['淡村采购','一次性用品','烧烤冻品进货','烧烤雪花牛肉','煤气','植物油','白切酱油花生油','半成品鱼片','饮料','大米','配料','鸭头鸭脚','员工菜','人工','房租','水电','其他'],
+  income: ['营业额','其他收入'],
+};
+let entryType = 'expense'; // 当前记账类型：expense 支出 / income 收入
 const WD = ['周日','周一','周二','周三','周四','周五','周六'];
 const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
 
@@ -14,6 +18,7 @@ const fmt = (n) => round2(n).toLocaleString('zh-CN', { maximumFractionDigits: 2 
 const pad2 = (n) => String(n).padStart(2, '0');
 const fmtDate = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 const todayStr = () => fmtDate(new Date());
+const isIncome = (e) => e.type === 'income';
 function ymdLabel(s){const p=s.split('-');return p[0]+'年'+parseInt(p[1])+'月'+parseInt(p[2])+'日';}
 function mdShort(s){const p=s.split('-');return parseInt(p[1])+'月'+parseInt(p[2])+'日';}
 function weekday(s){return WD[new Date(s+'T00:00:00').getDay()];}
@@ -31,15 +36,24 @@ function handleAuthErr(err) {
 }
 
 // ----- record -----
+const curCats = () => CATS[entryType];
+
 function buildCatSheet(){
   const grid=document.getElementById('catSheetGrid');
-  grid.innerHTML=CATS.map((c,i)=>`<button class="sheet-cat" data-i="${i}" type="button">${c}</button>`).join('');
-  grid.querySelectorAll('.sheet-cat').forEach(b=>{ b.onclick=()=>{ selectedCat=CATS[+b.dataset.i]; syncCatBtn(); closeCatSheet(); }; });
+  grid.innerHTML=curCats().map((c,i)=>`<button class="sheet-cat" data-i="${i}" type="button">${c}</button>`).join('');
+  grid.querySelectorAll('.sheet-cat').forEach(b=>{ b.onclick=()=>{ selectedCat=curCats()[+b.dataset.i]; syncCatBtn(); closeCatSheet(); }; });
 }
 function syncCatBtn(){
   document.getElementById('catBtnText').textContent=selectedCat||'请选择类别';
   document.getElementById('catBtn').classList.toggle('chosen',!!selectedCat);
-  document.querySelectorAll('#catSheetGrid .sheet-cat').forEach(b=>b.classList.toggle('on',CATS[+b.dataset.i]===selectedCat));
+  document.querySelectorAll('#catSheetGrid .sheet-cat').forEach(b=>b.classList.toggle('on',curCats()[+b.dataset.i]===selectedCat));
+}
+function setEntryType(t){
+  if(t===entryType) return;
+  entryType=t;
+  document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  selectedCat = (t==='income') ? '营业额' : null; // 收入默认选营业额，省一步
+  buildCatSheet(); syncCatBtn();
 }
 function openCatSheet(){ document.getElementById('catSheet').classList.remove('hidden'); }
 function closeCatSheet(){ document.getElementById('catSheet').classList.add('hidden'); }
@@ -63,17 +77,18 @@ async function doSave(){
   if(!(amt>0)){ toast('请先填金额'); return; }
   saving=true; const btn=document.getElementById('saveBtn'); btn.disabled=true;
   try{
-    const { entry }=await api.entries.create({date:curDate,cat:selectedCat,amt:round2(amt)});
+    const { entry }=await api.entries.create({type:entryType,date:curDate,cat:selectedCat,amt:round2(amt)});
     entries.push(entry);
-    toast('已记：'+entry.cat+' ¥'+fmt(entry.amt));
-    amtStr=''; selectedCat=null; syncCatBtn(); renderAmt(); renderHeader();
+    toast((entryType==='income'?'已记收入：':'已记支出：')+entry.cat+' ¥'+fmt(entry.amt));
+    amtStr=''; selectedCat=(entryType==='income')?'营业额':null; syncCatBtn(); renderAmt(); renderHeader();
   }catch(e){ if(!handleAuthErr(e)) toast(e.message||'保存失败'); }
   finally{ saving=false; btn.disabled=false; }
 }
 function renderDate(){ document.getElementById('dateInput').value=curDate; document.getElementById('todayTag').style.display=(curDate===todayStr())?'inline-block':'none'; }
-function renderHeader(){ const t=entries.filter(e=>e.date===todayStr()).reduce((s,e)=>s+e.amt,0); document.getElementById('todayTotal').textContent=fmt(t); }
+// 顶部「今天」显示当天支出，作为花了多少的快速一瞥
+function renderHeader(){ const t=entries.filter(e=>e.date===todayStr()&&!isIncome(e)).reduce((s,e)=>s+e.amt,0); document.getElementById('todayTotal').textContent=fmt(t); }
 
-// ----- totals -----
+// ----- totals / 利润 -----
 function setGran(g){ gran=g; document.querySelectorAll('#granSeg button').forEach(b=>b.classList.toggle('on',b.dataset.g===g)); document.getElementById('main').scrollTop=0; renderTotals(); }
 function shiftPeriod(step){
   if(gran==='day'){ const d=new Date(viewDay+'T00:00:00'); d.setDate(d.getDate()+step); viewDay=fmtDate(d); }
@@ -83,6 +98,7 @@ function shiftPeriod(step){
 }
 function resetPeriod(){ const t=todayStr(); if(gran==='day') viewDay=t; else if(gran==='month') viewMonth=t.slice(0,7); else viewYear=t.slice(0,4); renderTotals(); }
 
+// 支出构成（只统计支出）
 function catCard(list,title){
   const m={}; list.forEach(e=>m[e.cat]=(m[e.cat]||0)+e.amt);
   const arr=Object.keys(m).map(c=>({c,v:m[c]})).sort((a,b)=>b.v-a.v);
@@ -93,32 +109,46 @@ function catCard(list,title){
 }
 function dayEntries(list){
   const items=list.slice().sort((a,b)=>a.id<b.id?1:-1);
-  return items.map(e=>`<div class="entry"><span class="ec">${e.cat}</span><span class="ea num">¥${fmt(e.amt)}</span><button class="del" data-id="${e.id}" aria-label="删除">${TRASH}</button></div>`).join('');
+  return items.map(e=>`<div class="entry${isIncome(e)?' income':''}"><span class="ec">${e.cat}</span><span class="ea num">${isIncome(e)?'+':''}¥${fmt(e.amt)}</span><button class="del" data-id="${e.id}" aria-label="删除">${TRASH}</button></div>`).join('');
+}
+function periodRow(key,label,o){
+  const net=round2(o.inc-o.exp);
+  return `<div class="drillrow" data-${key.k}="${key.v}"><div class="dl"><div class="dd">${label}</div><div class="io"><span class="in">收 ¥${fmt(o.inc)}</span> · 支 ¥${fmt(o.exp)}</div></div><div class="dv num">¥${fmt(net)}</div><div class="ch">›</div></div>`;
 }
 function dayDrill(list){
-  const m={}; list.forEach(e=>{ const o=m[e.date]=m[e.date]||{t:0,n:0}; o.t+=e.amt; o.n++; });
-  return Object.keys(m).sort().reverse().map(d=>`<div class="drillrow" data-day="${d}"><div class="dl"><div class="dd">${mdShort(d)} ${weekday(d)}</div><div class="dc">${m[d].n}笔</div></div><div class="dv num">¥${fmt(m[d].t)}</div><div class="ch">›</div></div>`).join('');
+  const m={}; list.forEach(e=>{ const o=m[e.date]=m[e.date]||{inc:0,exp:0}; if(isIncome(e))o.inc+=e.amt; else o.exp+=e.amt; });
+  return Object.keys(m).sort().reverse().map(d=>periodRow({k:'day',v:d},`${mdShort(d)} ${weekday(d)}`,m[d])).join('');
 }
 function monthDrill(list){
-  const m={}; list.forEach(e=>{ const k=e.date.slice(0,7); const o=m[k]=m[k]||{t:0,n:0}; o.t+=e.amt; o.n++; });
-  return Object.keys(m).sort().map(k=>`<div class="drillrow" data-month="${k}"><div class="dl"><div class="dd">${parseInt(k.split('-')[1])}月</div><div class="dc">${m[k].n}笔</div></div><div class="dv num">¥${fmt(m[k].t)}</div><div class="ch">›</div></div>`).join('');
+  const m={}; list.forEach(e=>{ const k=e.date.slice(0,7); const o=m[k]=m[k]||{inc:0,exp:0}; if(isIncome(e))o.inc+=e.amt; else o.exp+=e.amt; });
+  return Object.keys(m).sort().map(k=>periodRow({k:'month',v:k},`${parseInt(k.split('-')[1])}月`,m[k])).join('');
 }
+
 function renderTotals(){
   const today=todayStr(); let label='',tag='',list=[];
-  if(gran==='day'){ list=entries.filter(e=>e.date===viewDay); label=ymdLabel(viewDay); if(viewDay===today)tag='今天'; document.getElementById('totLab').textContent='当日总开支'; }
-  else if(gran==='month'){ list=entries.filter(e=>e.date.slice(0,7)===viewMonth); const p=viewMonth.split('-'); label=p[0]+'年'+parseInt(p[1])+'月'; if(viewMonth===today.slice(0,7))tag='本月'; document.getElementById('totLab').textContent='本月总开支'; }
-  else{ list=entries.filter(e=>e.date.slice(0,4)===viewYear); label=viewYear+'年'; if(viewYear===today.slice(0,4))tag='今年'; document.getElementById('totLab').textContent='本年总开支'; }
-  const total=list.reduce((s,e)=>s+e.amt,0);
+  if(gran==='day'){ list=entries.filter(e=>e.date===viewDay); label=ymdLabel(viewDay); if(viewDay===today)tag='今天'; document.getElementById('totLab').textContent='当日利润'; }
+  else if(gran==='month'){ list=entries.filter(e=>e.date.slice(0,7)===viewMonth); const p=viewMonth.split('-'); label=p[0]+'年'+parseInt(p[1])+'月'; if(viewMonth===today.slice(0,7))tag='本月'; document.getElementById('totLab').textContent='本月利润'; }
+  else{ list=entries.filter(e=>e.date.slice(0,4)===viewYear); label=viewYear+'年'; if(viewYear===today.slice(0,4))tag='今年'; document.getElementById('totLab').textContent='本年利润'; }
+
+  const exp=list.filter(e=>!isIncome(e));
+  const income=list.filter(isIncome).reduce((s,e)=>s+e.amt,0);
+  const expense=exp.reduce((s,e)=>s+e.amt,0);
+  const profit=round2(income-expense);
+  const margin= income>0 ? Math.round(profit/income*1000)/10 : null;
+
   document.getElementById('perTxt').innerHTML=label+(tag?` <span class="curtag">${tag}</span>`:'');
-  document.getElementById('perTotal').textContent=fmt(total);
+  document.getElementById('perProfit').textContent=fmt(profit);
+  document.getElementById('perIncome').textContent=fmt(income);
+  document.getElementById('perExpense').textContent=fmt(expense);
+  document.getElementById('perMargin').textContent= margin==null ? '—' : margin+'%';
 
   const body=document.getElementById('totalsBody');
-  if(list.length===0){ const w=gran==='day'?'这天':(gran==='month'?'这个月':'这一年'); body.innerHTML=`<div class="empty">${w}还没有记账。</div>`; return; }
+  if(list.length===0){ const w=gran==='day'?'这天':(gran==='month'?'这个月':'这一年'); body.innerHTML=`<div class="empty">${w}还没有记账。<br>记一笔收入和支出，就能看到利润。</div>`; return; }
 
   let html='';
   if(gran==='day'){ html+=dayEntries(list); }
-  else if(gran==='month'){ html+=catCard(list,'按类别'); html+='<div class="seclabel" style="margin-top:2px;">按天（点开看明细）</div>'+dayDrill(list); }
-  else{ html+='<div class="seclabel" style="margin-top:2px;">按月（点开看明细）</div>'+monthDrill(list)+catCard(list,'全年各类'); }
+  else if(gran==='month'){ if(exp.length) html+=catCard(exp,'支出构成'); html+='<div class="seclabel" style="margin-top:2px;">按天（点开看明细）</div>'+dayDrill(list); }
+  else{ html+='<div class="seclabel" style="margin-top:2px;">按月（点开看明细）</div>'+monthDrill(list); if(exp.length) html+=catCard(exp,'全年支出构成'); }
   body.innerHTML=html;
 
   if(gran==='day') body.querySelectorAll('.del').forEach(b=>b.onclick=()=>delEntry(Number(b.dataset.id)));
@@ -138,7 +168,7 @@ async function delEntry(id){
 }
 async function undoDelete(removed){
   try{
-    const { entry }=await api.entries.create({date:removed.date,cat:removed.cat,amt:removed.amt});
+    const { entry }=await api.entries.create({type:removed.type,date:removed.date,cat:removed.cat,amt:removed.amt});
     entries.push(entry); renderTotals(); renderHeader();
   }catch(e){ if(!handleAuthErr(e)) toast('撤销失败'); }
 }
@@ -170,6 +200,7 @@ function toast(msg,actLabel,actFn){
 function bindEvents(){
   document.getElementById('saveBtn').onclick=doSave;
   document.getElementById('dateInput').onchange=e=>{ curDate=e.target.value||todayStr(); renderDate(); };
+  document.querySelectorAll('#typeSeg button').forEach(b=>b.onclick=()=>setEntryType(b.dataset.t));
   document.querySelectorAll('#granSeg button').forEach(b=>b.onclick=()=>setGran(b.dataset.g));
   document.getElementById('prevP').onclick=()=>shiftPeriod(-1);
   document.getElementById('nextP').onclick=()=>shiftPeriod(1);
@@ -193,7 +224,11 @@ async function init(){
     return;
   }
 
-  try{ const { categories }=await api.categories.list(); if(Array.isArray(categories)&&categories.length) CATS=categories; }catch{ /* keep fallback */ }
+  try{
+    const { expense, income }=await api.categories.list();
+    if(Array.isArray(expense)&&expense.length) CATS.expense=expense;
+    if(Array.isArray(income)&&income.length) CATS.income=income;
+  }catch{ /* keep fallback */ }
 
   buildCatSheet(); buildPad();
   syncCatBtn(); renderAmt(); renderDate(); renderHeader();

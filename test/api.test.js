@@ -49,7 +49,9 @@ async function call(method, path, { body, j } = {}) {
 test('categories are public', async () => {
   const res = await call('GET', '/api/categories');
   assert.equal(res.status, 200);
-  assert.ok(res.data.categories.includes('煤气'));
+  assert.ok(res.data.expense.includes('煤气'));
+  assert.ok(res.data.expense.includes('人工'));
+  assert.ok(res.data.income.includes('营业额'));
 });
 
 test('me requires auth', async () => {
@@ -81,10 +83,19 @@ test('login + ledger lifecycle on the shared account', async () => {
   const created = await call('POST', '/api/entries', { body: { date: '2026-06-01', cat: '煤气', amt: 128.5 }, j });
   assert.equal(created.status, 201);
   assert.equal(created.data.entry.amt, 128.5);
+  assert.equal(created.data.entry.type, 'expense'); // 缺省记为支出
   const entryId = created.data.entry.id;
 
   const list = await call('GET', '/api/entries', { j });
   assert.equal(list.data.entries.length, 1);
+
+  // 收入
+  const inc = await call('POST', '/api/entries', { body: { type: 'income', date: '2026-06-01', cat: '营业额', amt: 500 }, j });
+  assert.equal(inc.status, 201);
+  assert.equal(inc.data.entry.type, 'income');
+  // 收入用了支出类别 -> 400
+  const badType = await call('POST', '/api/entries', { body: { type: 'income', date: '2026-06-01', cat: '煤气', amt: 5 }, j });
+  assert.equal(badType.status, 400);
 
   const del = await call('DELETE', `/api/entries/${entryId}`, { j });
   assert.equal(del.status, 200);

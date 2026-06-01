@@ -1,5 +1,5 @@
 import { ApiError } from './http.js';
-import { isValidCategory } from './categories.js';
+import { isValidCategory, isValidType } from './categories.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_AMOUNT_CENTS = 1_000_000_000; // 一千万元封顶，防溢出/误输入
@@ -14,16 +14,20 @@ export function requireLoginCredentials(body) {
   return { username, password };
 }
 
-/** Validate a ledger entry payload. Returns { date, category, amountCents }. */
+/** Validate a ledger entry payload. Returns { type, date, category, amountCents }. */
 export function validateEntryInput(body) {
+  const type = body?.type === 'income' ? 'income' : 'expense'; // 兼容老客户端：缺省记为支出
   const date = typeof body?.date === 'string' ? body.date.trim() : '';
   const category = typeof body?.cat === 'string' ? body.cat.trim() : '';
   const amount = Number(body?.amt);
 
+  if (!isValidType(type)) {
+    throw new ApiError(400, '类型不正确');
+  }
   if (!DATE_RE.test(date) || !isRealDate(date)) {
     throw new ApiError(400, '日期格式不正确');
   }
-  if (!isValidCategory(category)) {
+  if (!isValidCategory(type, category)) {
     throw new ApiError(400, '类别不存在');
   }
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -33,7 +37,7 @@ export function validateEntryInput(body) {
   if (amountCents <= 0 || amountCents > MAX_AMOUNT_CENTS) {
     throw new ApiError(400, '金额超出允许范围');
   }
-  return { date, category, amountCents };
+  return { type, date, category, amountCents };
 }
 
 function isRealDate(str) {

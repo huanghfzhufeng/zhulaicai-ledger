@@ -1,8 +1,10 @@
 /**
- * Expense categories for 朱来财大排档. Single source of truth — the frontend
- * fetches this list from /api/categories so the two never drift apart.
+ * Categories for 朱来财大排档, split by entry type.
+ * Single source of truth — the frontend fetches these from /api/categories.
+ * Expense list = daily purchases + the monthly fixed costs (人工/房租/水电)
+ * that are needed to compute real profit.
  */
-export const CATEGORIES = Object.freeze([
+export const EXPENSE_CATEGORIES = Object.freeze([
   '淡村采购',
   '一次性用品',
   '烧烤冻品进货',
@@ -16,10 +18,25 @@ export const CATEGORIES = Object.freeze([
   '配料',
   '鸭头鸭脚',
   '员工菜',
+  '人工',
+  '房租',
+  '水电',
+  '其他',
 ]);
 
-const CATEGORY_SET = new Set(CATEGORIES);
+export const INCOME_CATEGORIES = Object.freeze(['营业额', '其他收入']);
 
-export function isValidCategory(value) {
-  return typeof value === 'string' && CATEGORY_SET.has(value);
+export const ENTRY_TYPES = Object.freeze(['expense', 'income']);
+
+const SETS = {
+  expense: new Set(EXPENSE_CATEGORIES),
+  income: new Set(INCOME_CATEGORIES),
+};
+
+export function isValidType(type) {
+  return type === 'expense' || type === 'income';
+}
+
+export function isValidCategory(type, value) {
+  return typeof value === 'string' && SETS[type]?.has(value) === true;
 }

@@ -23,6 +23,11 @@ main{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 14p
 .catbtn.chosen{color:var(--red); font-weight:600; border-color:var(--red);}
 .catbtn-chev{flex:none; color:var(--gold); font-size:24px; line-height:1;}
 
+.typeseg{display:flex; background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:4px; gap:4px; margin-bottom:12px;}
+.typeseg button{flex:1; border:none; background:transparent; padding:11px 0; border-radius:10px; font-size:15px; font-weight:600; color:var(--muted); cursor:pointer; touch-action:manipulation; transition:.12s;}
+.typeseg button[data-t="expense"].on{background:var(--red); color:#fff;}
+.typeseg button[data-t="income"].on{background:var(--ok); color:#fff;}
+
 .sheet-overlay{position:absolute; inset:0; background:rgba(43,36,32,.45); display:flex; align-items:flex-end; z-index:20;}
 .sheet{width:100%; max-height:80%; overflow-y:auto; background:var(--surface); border-radius:18px 18px 0 0; padding:14px 16px calc(18px + env(safe-area-inset-bottom)); box-shadow:0 -8px 24px rgba(0,0,0,.18); animation:sheetUp .22s ease;}
 @keyframes sheetUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
@@ -62,6 +67,11 @@ main{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 14p
 .bigtotal{background:var(--red); color:#fff; border-radius:16px; padding:16px 18px; margin-bottom:16px; text-align:center; box-shadow:0 6px 16px rgba(197,61,46,.22);}
 .bigtotal .lab{font-size:13px; opacity:.9;}
 .bigtotal .val{font-size:34px; font-weight:700; margin-top:2px;}
+.bigtotal .profitsub{display:flex; justify-content:center; gap:14px; margin-top:8px; font-size:12px; opacity:.92; flex-wrap:wrap;}
+.bigtotal .profitsub b{font-weight:700;}
+.entry.income .ea{color:var(--ok);}
+.drillrow .io{font-size:12px; color:var(--muted); margin-top:1px;}
+.drillrow .io .in{color:var(--ok);}
 .card{background:var(--surface); border:1px solid var(--line); border-radius:15px; padding:6px 14px 10px; margin-bottom:16px;}
 .card .ttl{font-size:13px; color:var(--muted); font-weight:500; padding:9px 0 4px;}
 .catrow{padding:9px 0; border-top:1px solid var(--line);}
