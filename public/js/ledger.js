@@ -313,7 +313,6 @@ async function init(){
     return;
   }
   applyRoleUI();
-  document.getElementById('acctChip').textContent=isOwner?'老板':'员工';
   document.getElementById('acctName').textContent=(isOwner?'老板':'员工')+' · '+(currentUser.username||'');
 
   try{
