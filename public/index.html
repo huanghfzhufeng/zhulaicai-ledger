@@ -21,7 +21,10 @@
   <header>
     <div class="coin">财</div>
     <div class="brand"><h1>朱来财大排档</h1><p>每日开支 · 记账本</p></div>
-    <div class="todaybox"><div class="lab">今天</div><div class="val num">¥<span id="todayTotal">0</span></div></div>
+    <div class="todaybox"><div class="lab">今日支出</div><div class="val num">¥<span id="todayTotal">0</span></div></div>
+    <button class="acct" id="acctBtn" type="button" aria-label="账号">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+    </button>
   </header>
 
   <main id="main">
@@ -68,7 +71,6 @@
         </div>
       </div>
       <div id="totalsBody"></div>
-      <button class="logout-link" id="logoutBtn" type="button">退出登录</button>
     </section>
   </main>
 
@@ -96,6 +98,13 @@
         <button id="catAddCancel" type="button">取消</button>
       </div>
       <div class="sheet-grid" id="catSheetGrid"></div>
+    </div>
+  </div>
+
+  <div class="acct-overlay hidden" id="acctMenu">
+    <div class="acct-card">
+      <div class="acct-who"><span>当前账号</span><b id="acctName">—</b></div>
+      <button class="acct-logout" id="logoutBtn" type="button">退出登录</button>
     </div>
   </div>
 

@@ -13,6 +13,7 @@ let entries = [];
 let saving = false;
 let isOwner = true; // 老板看利润/收入；员工只看经营开支
 let editingCats = false; // 类别管理"编辑"模式（仅老板）
+let currentUser = null; // { username, role }
 
 // ----- formatting helpers -----
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -238,12 +239,25 @@ function switchView(v){
   document.getElementById('tabRecord').classList.toggle('on',rec);
   document.getElementById('tabTotals').classList.toggle('on',!rec);
   document.getElementById('main').scrollTop=0;
-  if(!rec) renderTotals();
+  if(!rec){ renderTotals(); refresh(); } // 先显示缓存(秒开)，再后台拉最新
 }
 
+function openAcct(){ document.getElementById('acctMenu').classList.remove('hidden'); }
+function closeAcct(){ document.getElementById('acctMenu').classList.add('hidden'); }
 async function doLogout(){
+  if(!confirm('确定退出登录？')) return;
   try{ await api.auth.logout(); }catch{ /* clear client state regardless */ }
   location.replace('/login.html');
+}
+
+// 重新拉取账目（切到账目页 / App 重新回到前台时调用，解决多设备看旧账）
+async function refresh(){
+  try{
+    const { entries:list }=await api.entries.list();
+    entries=list;
+    renderHeader();
+    if(!document.getElementById('viewTotals').classList.contains('hidden')) renderTotals();
+  }catch(e){ handleAuthErr(e); }
 }
 
 let toastT;
@@ -265,7 +279,10 @@ function bindEvents(){
   document.getElementById('perTxt').onclick=resetPeriod;
   document.getElementById('tabRecord').onclick=()=>switchView('record');
   document.getElementById('tabTotals').onclick=()=>switchView('totals');
+  document.getElementById('acctBtn').onclick=openAcct;
+  document.getElementById('acctMenu').onclick=e=>{ if(e.target.id==='acctMenu') closeAcct(); };
   document.getElementById('logoutBtn').onclick=doLogout;
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') refresh(); });
   document.getElementById('catBtn').onclick=openCatSheet;
   document.getElementById('catSheetClose').onclick=closeCatSheet;
   document.getElementById('catSheet').onclick=e=>{ if(e.target.id==='catSheet') closeCatSheet(); };
@@ -288,6 +305,7 @@ async function init(){
   // me() 作为登录守卫 + 拿到角色
   try{
     const { user }=await api.auth.me();
+    currentUser = user;
     isOwner = user.role !== 'staff';
   }catch(e){
     if(handleAuthErr(e)) return;
@@ -295,6 +313,7 @@ async function init(){
     return;
   }
   applyRoleUI();
+  document.getElementById('acctName').textContent=(isOwner?'老板':'员工')+' · '+(currentUser.username||'');
 
   try{
     const { entries:list }=await api.entries.list();
