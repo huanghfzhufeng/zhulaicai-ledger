@@ -14,6 +14,9 @@ const insertStmt = db.prepare(
   `INSERT INTO entries (user_id, type, entry_date, category, amount_cents, created_at)
    VALUES (?, ?, ?, ?, ?, ?)`,
 );
+const updateStmt = db.prepare(
+  'UPDATE entries SET type = ?, entry_date = ?, category = ?, amount_cents = ? WHERE id = ?',
+);
 const deleteStmt = db.prepare('DELETE FROM entries WHERE id = ?');
 
 /** Map a DB row to the API/UI shape (amount back to yuan). */
@@ -39,6 +42,12 @@ export function getById(id) {
 export function createEntry({ userId, type, date, category, amountCents }) {
   const info = insertStmt.run(userId, type, date, category, amountCents, Date.now());
   return { id: Number(info.lastInsertRowid), type, date, cat: category, amt: amountCents / 100 };
+}
+
+/** Update an entry's fields by id. user_id (recorder) is left unchanged. */
+export function updateEntry(id, { type, date, category, amountCents }) {
+  updateStmt.run(type, date, category, amountCents, id);
+  return { id: Number(id), type, date, cat: category, amt: amountCents / 100 };
 }
 
 /** Delete one entry by id. Returns true if a row was removed. */

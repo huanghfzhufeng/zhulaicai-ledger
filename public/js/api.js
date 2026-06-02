@@ -47,6 +47,7 @@ export const api = {
   entries: {
     list: () => request('GET', '/api/entries'),
     create: (entry) => request('POST', '/api/entries', entry),
+    update: (id, entry) => request('PATCH', `/api/entries/${id}`, entry),
     remove: (id) => request('DELETE', `/api/entries/${id}`),
   },
   categories: {

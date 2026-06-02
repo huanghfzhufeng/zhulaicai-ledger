@@ -14,6 +14,7 @@ let saving = false;
 let isOwner = true; // 老板看利润/收入；员工只看经营开支
 let editingCats = false; // 类别管理"编辑"模式（仅老板）
 let currentUser = null; // { username, role }
+let editingId = null; // 非空 = 正在编辑该 id；否则为新增
 
 // ----- formatting helpers -----
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -124,16 +125,44 @@ async function doSave(){
   if(!(amt>0)){ toast('请先填金额'); return; }
   saving=true; const btn=document.getElementById('saveBtn'); btn.disabled=true;
   try{
-    const { entry }=await api.entries.create({type:entryType,date:curDate,cat:selectedCat,amt:round2(amt)});
-    entries.push(entry);
-    toast((entryType==='income'?'已记收入：':'已记支出：')+entry.cat+' ¥'+fmt(entry.amt));
-    amtStr=''; selectedCat=(entryType==='income')?'营业额':null; syncCatBtn(); renderAmt(); renderHeader();
+    const payload={type:entryType,date:curDate,cat:selectedCat,amt:round2(amt)};
+    if(editingId){
+      const { entry }=await api.entries.update(editingId, payload);
+      const i=entries.findIndex(x=>x.id===editingId); if(i>=0) entries[i]=entry;
+      resetRecordState(); renderHeader(); toast('已修改'); switchView('totals');
+    } else {
+      const { entry }=await api.entries.create(payload);
+      entries.push(entry);
+      toast((entryType==='income'?'已记收入：':'已记支出：')+entry.cat+' ¥'+fmt(entry.amt));
+      amtStr=''; selectedCat=(entryType==='income')?'营业额':null; syncCatBtn(); renderAmt(); renderHeader();
+    }
   }catch(e){ if(!handleAuthErr(e)) toast(e.message||'保存失败'); }
   finally{ saving=false; btn.disabled=false; }
 }
 function renderDate(){ document.getElementById('dateInput').value=curDate; document.getElementById('todayTag').style.display=(curDate===todayStr())?'inline-block':'none'; }
 // 顶部「今天」显示当天支出，作为花了多少的快速一瞥
 function renderHeader(){ const t=entries.filter(e=>e.date===todayStr()&&!isIncome(e)).reduce((s,e)=>s+e.amt,0); document.getElementById('todayTotal').textContent=fmt(t); }
+
+// ----- 编辑已记的账（复用记账界面当编辑器）-----
+function setEditMode(on){
+  document.getElementById('saveBtn').textContent = on ? '保存修改' : '记一笔';
+  const c=document.getElementById('cancelEdit'); if(c) c.classList.toggle('hidden', !on);
+}
+function resetRecordState(){
+  editingId=null; setEditMode(false);
+  entryType='expense';
+  document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t==='expense'));
+  selectedCat=null; amtStr='';
+  buildCatSheet(); renderAmt();
+}
+function editEntry(id){
+  const e=entries.find(x=>x.id===id); if(!e) return;
+  editingId=id; entryType=e.type;
+  document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t===entryType));
+  selectedCat=e.cat; curDate=e.date; amtStr=String(e.amt);
+  buildCatSheet(); syncCatBtn(); renderAmt(); renderDate(); setEditMode(true);
+  switchView('record');
+}
 
 // ----- totals / 利润 -----
 function setGran(g){ gran=g; document.querySelectorAll('#granSeg button').forEach(b=>b.classList.toggle('on',b.dataset.g===g)); document.getElementById('main').scrollTop=0; renderTotals(); }
@@ -156,7 +185,7 @@ function catCard(list,title){
 }
 function dayEntries(list){
   const items=list.slice().sort((a,b)=>a.id<b.id?1:-1);
-  return items.map(e=>`<div class="entry${isIncome(e)?' income':''}"><span class="ec">${e.cat}</span><span class="ea num">${isIncome(e)?'+':''}¥${fmt(e.amt)}</span><button class="del" data-id="${e.id}" aria-label="删除">${TRASH}</button></div>`).join('');
+  return items.map(e=>`<div class="entry${isIncome(e)?' income':''}" data-id="${e.id}"><span class="ec">${e.cat}</span><span class="ea num">${isIncome(e)?'+':''}¥${fmt(e.amt)}</span><button class="del" data-id="${e.id}" aria-label="删除">${TRASH}</button></div>`).join('');
 }
 function periodRow(key,label,o){
   if(isOwner){
@@ -205,13 +234,15 @@ function renderTotals(){
   if(list.length===0){ const w=gran==='day'?'这天':(gran==='month'?'这个月':'这一年'); const hint=isOwner?'记一笔收入和支出，就能看到利润。':''; body.innerHTML=`<div class="empty">${w}还没有记账。${hint?'<br>'+hint:''}</div>`; return; }
 
   let html='';
-  if(gran==='day'){ html+=dayEntries(list); }
+  if(gran==='day'){ html+='<div class="hint-edit">点某笔可修改 · 垃圾桶删除</div>'+dayEntries(list); }
   else if(gran==='month'){ if(exp.length) html+=catCard(exp,'支出构成'); html+='<div class="seclabel" style="margin-top:2px;">按天（点开看明细）</div>'+dayDrill(list); }
   else{ html+='<div class="seclabel" style="margin-top:2px;">按月（点开看明细）</div>'+monthDrill(list); if(exp.length) html+=catCard(exp,'全年支出构成'); }
   body.innerHTML=html;
 
-  if(gran==='day') body.querySelectorAll('.del').forEach(b=>b.onclick=()=>delEntry(Number(b.dataset.id)));
-  else body.querySelectorAll('.drillrow').forEach(b=>b.onclick=()=>{ if(b.dataset.day) drillDay(b.dataset.day); else drillMonth(b.dataset.month); });
+  if(gran==='day'){
+    body.querySelectorAll('.entry').forEach(row=>{ row.onclick=()=>editEntry(Number(row.dataset.id)); });
+    body.querySelectorAll('.del').forEach(b=>{ b.onclick=(ev)=>{ ev.stopPropagation(); delEntry(Number(b.dataset.id)); }; });
+  } else body.querySelectorAll('.drillrow').forEach(b=>b.onclick=()=>{ if(b.dataset.day) drillDay(b.dataset.day); else drillMonth(b.dataset.month); });
 }
 function drillDay(d){ viewDay=d; setGran('day'); }
 function drillMonth(k){ viewMonth=k; setGran('month'); }
@@ -233,6 +264,7 @@ async function undoDelete(removed){
 }
 
 function switchView(v){
+  if(v!=='record' && editingId) resetRecordState(); // 离开编辑器视为取消修改
   const rec=v==='record';
   document.getElementById('viewRecord').classList.toggle('hidden',!rec);
   document.getElementById('viewTotals').classList.toggle('hidden',rec);
@@ -271,6 +303,7 @@ function toast(msg,actLabel,actFn){
 
 function bindEvents(){
   document.getElementById('saveBtn').onclick=doSave;
+  document.getElementById('cancelEdit').onclick=()=>switchView('totals');
   document.getElementById('dateInput').onchange=e=>{ curDate=e.target.value||todayStr(); renderDate(); };
   document.querySelectorAll('#typeSeg button').forEach(b=>b.onclick=()=>setEntryType(b.dataset.t));
   document.querySelectorAll('#granSeg button').forEach(b=>b.onclick=()=>setGran(b.dataset.g));

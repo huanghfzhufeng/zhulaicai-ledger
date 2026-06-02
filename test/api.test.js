@@ -132,3 +132,27 @@ test('owner can add/remove categories; staff cannot; history is preserved', asyn
   assert.equal((await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-02', cat: '水果', amt: 1 }, j: owner.j })).status, 400);
   assert.ok((await call('GET', '/api/entries', { j: owner.j })).data.entries.some((e) => e.cat === '水果'));
 });
+
+test('entries can be edited, with role limits', async () => {
+  const owner = await login('boss', 'boss123');
+  const staff = await login('clerk', 'clerk123');
+
+  // 老板：建一笔支出 → 改金额+类别
+  const c = await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-03', cat: '煤气', amt: 50 }, j: owner.j });
+  const id = c.data.entry.id;
+  const u = await call('PATCH', `/api/entries/${id}`, { body: { type: 'expense', date: '2026-06-03', cat: '配料', amt: 66 }, j: owner.j });
+  assert.equal(u.status, 200);
+  assert.equal(u.data.entry.cat, '配料');
+  assert.equal(u.data.entry.amt, 66);
+  // 改成不存在的类别 → 400
+  assert.equal((await call('PATCH', `/api/entries/${id}`, { body: { type: 'expense', date: '2026-06-03', cat: '不存在', amt: 10 }, j: owner.j })).status, 400);
+
+  // 老板建一笔收入，员工去改它 → 404（看不到也碰不到）
+  const inc = await call('POST', '/api/entries', { body: { type: 'income', date: '2026-06-03', cat: '营业额', amt: 999 }, j: owner.j });
+  assert.equal((await call('PATCH', `/api/entries/${inc.data.entry.id}`, { body: { type: 'expense', date: '2026-06-03', cat: '煤气', amt: 10 }, j: staff.j })).status, 404);
+
+  // 员工：建经营支出 → 自己改成功；改成收入 → 403
+  const sc = await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-03', cat: '煤气', amt: 20 }, j: staff.j });
+  assert.equal((await call('PATCH', `/api/entries/${sc.data.entry.id}`, { body: { type: 'expense', date: '2026-06-03', cat: '配料', amt: 25 }, j: staff.j })).status, 200);
+  assert.equal((await call('PATCH', `/api/entries/${sc.data.entry.id}`, { body: { type: 'income', date: '2026-06-03', cat: '营业额', amt: 5 }, j: staff.j })).status, 403);
+});

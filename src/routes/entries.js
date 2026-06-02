@@ -3,7 +3,7 @@ import { ok, ApiError } from '../lib/http.js';
 import { validateEntryInput } from '../lib/validation.js';
 import { isStaffExpenseCategory, categoryExists } from '../models/categories.js';
 import { requireAuth } from '../auth/middleware.js';
-import { listAll, getById, createEntry, deleteEntry } from '../models/entries.js';
+import { listAll, getById, createEntry, updateEntry, deleteEntry } from '../models/entries.js';
 
 export const entriesRouter = Router();
 
@@ -28,6 +28,24 @@ entriesRouter.post('/', (req, res) => {
   }
   const entry = createEntry({ userId: req.user.id, type, date, category, amountCents });
   return ok(res, { entry }, 201);
+});
+
+entriesRouter.patch('/:id', (req, res) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) throw new ApiError(400, '无效的记录 ID');
+
+  const existing = getById(id);
+  // 员工对自己看不到的记录一律当作"不存在"
+  if (!existing || (isStaff(req) && !staffCanTouch(existing))) throw new ApiError(404, '记录不存在');
+
+  const { type, date, category, amountCents } = validateEntryInput(req.body);
+  if (!categoryExists(type, category)) throw new ApiError(400, '类别不存在');
+  if (isStaff(req) && !(type === 'expense' && isStaffExpenseCategory(category))) {
+    throw new ApiError(403, '员工只能记日常经营支出');
+  }
+
+  const entry = updateEntry(id, { type, date, category, amountCents });
+  return ok(res, { entry });
 });
 
 entriesRouter.delete('/:id', (req, res) => {
