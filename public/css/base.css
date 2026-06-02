@@ -10,6 +10,10 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
   background:var(--bg); color:var(--ink);
   display:flex; justify-content:center;
+  /* 像原生 App：正文不可选中、不弹长按复制菜单 */
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
 }
+/* 输入框例外：仍可编辑/选中 */
+input, textarea{-webkit-user-select:text; user-select:text; -webkit-touch-callout:default;}
 .num{font-variant-numeric:tabular-nums;}
 .hidden{display:none !important;}
