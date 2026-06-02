@@ -234,7 +234,7 @@ function renderTotals(){
   if(list.length===0){ const w=gran==='day'?'这天':(gran==='month'?'这个月':'这一年'); const hint=isOwner?'记一笔收入和支出，就能看到利润。':''; body.innerHTML=`<div class="empty">${w}还没有记账。${hint?'<br>'+hint:''}</div>`; return; }
 
   let html='';
-  if(gran==='day'){ html+='<div class="hint-edit">点某笔可修改 · 垃圾桶删除</div>'+dayEntries(list); }
+  if(gran==='day'){ html+=dayEntries(list); }
   else if(gran==='month'){ if(exp.length) html+=catCard(exp,'支出构成'); html+='<div class="seclabel" style="margin-top:2px;">按天（点开看明细）</div>'+dayDrill(list); }
   else{ html+='<div class="seclabel" style="margin-top:2px;">按月（点开看明细）</div>'+monthDrill(list); if(exp.length) html+=catCard(exp,'全年支出构成'); }
   body.innerHTML=html;
