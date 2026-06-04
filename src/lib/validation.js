@@ -37,7 +37,9 @@ export function validateEntryInput(body) {
   if (amountCents <= 0 || amountCents > MAX_AMOUNT_CENTS) {
     throw new ApiError(400, '金额超出允许范围');
   }
-  return { type, date, category, amountCents };
+  // 一次性支出标记只对"支出"有意义
+  const oneTime = type === 'expense' && (body?.oneTime === true || body?.oneTime === 1);
+  return { type, date, category, amountCents, oneTime };
 }
 
 function isRealDate(str) {

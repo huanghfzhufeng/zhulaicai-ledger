@@ -36,6 +36,10 @@
         <button type="button" data-t="expense" class="on">支出</button>
         <button type="button" data-t="income">收入</button>
       </div>
+      <label class="onetime hidden" id="oneTimeRow">
+        <input type="checkbox" id="oneTimeChk">
+        <span>一次性支出（装修 / 大件 · 不计入利润）</span>
+      </label>
       <button class="catbtn" id="catBtn" type="button">
         <span id="catBtnText">请选择类别</span>
         <span class="catbtn-chev">›</span>
@@ -66,8 +70,10 @@
           <span>利润率 <b id="perMargin">—</b></span>
           <span>收入 ¥<b id="perIncome" class="num">0</b></span>
           <span>支出 ¥<b id="perExpense" class="num">0</b></span>
+          <span id="perOneTimeWrap" class="hidden">一次性 ¥<b id="perOneTime" class="num">0</b></span>
         </div>
       </div>
+      <div class="payback hidden" id="paybackCard"></div>
       <div id="totalsBody"></div>
     </section>
   </main>

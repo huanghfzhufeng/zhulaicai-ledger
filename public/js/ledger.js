@@ -15,6 +15,7 @@ let isOwner = true; // 老板看利润/收入；员工只看经营开支
 let editingCats = false; // 类别管理"编辑"模式（仅老板）
 let currentUser = null; // { username, role }
 let editingId = null; // 非空 = 正在编辑该 id；否则为新增
+let oneTime = false; // 当前这笔是否「一次性支出」（装修/大件，不计入月利润；仅老板可设）
 
 // ----- formatting helpers -----
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -68,7 +69,15 @@ function setEntryType(t){
   entryType=t;
   document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
   selectedCat = (t==='income') ? (CATS.income[0]||null) : null; // 收入默认选第一个(营业额)
+  oneTime=false; syncOneTimeUI(); // 切换类型时重置「一次性」（收入没有这个概念）
   buildCatSheet();
+}
+// 「一次性」开关只在 老板 + 支出 时出现；其余情况隐藏。同步勾选状态与高亮。
+function syncOneTimeUI(){
+  const row=document.getElementById('oneTimeRow'), chk=document.getElementById('oneTimeChk');
+  const show = isOwner && entryType==='expense';
+  if(row){ row.classList.toggle('hidden', !show); row.classList.toggle('on', show && oneTime); }
+  if(chk) chk.checked = oneTime;
 }
 function openCatSheet(){ document.getElementById('catSheet').classList.remove('hidden'); }
 function closeCatSheet(){
@@ -125,7 +134,7 @@ async function doSave(){
   if(!(amt>0)){ toast('请先填金额'); return; }
   saving=true; const btn=document.getElementById('saveBtn'); btn.disabled=true;
   try{
-    const payload={type:entryType,date:curDate,cat:selectedCat,amt:round2(amt)};
+    const payload={type:entryType,date:curDate,cat:selectedCat,amt:round2(amt),oneTime:(entryType==='expense'&&oneTime)};
     if(editingId){
       const { entry }=await api.entries.update(editingId, payload);
       const i=entries.findIndex(x=>x.id===editingId); if(i>=0) entries[i]=entry;
@@ -133,8 +142,9 @@ async function doSave(){
     } else {
       const { entry }=await api.entries.create(payload);
       entries.push(entry);
-      toast((entryType==='income'?'已记收入：':'已记支出：')+entry.cat+' ¥'+fmt(entry.amt));
-      amtStr=''; selectedCat=(entryType==='income')?'营业额':null; syncCatBtn(); renderAmt(); renderHeader();
+      const tip=entryType==='income'?'已记收入：':(entry.oneTime?'已记一次性支出：':'已记支出：');
+      toast(tip+entry.cat+' ¥'+fmt(entry.amt));
+      amtStr=''; selectedCat=(entryType==='income')?'营业额':null; oneTime=false; syncOneTimeUI(); syncCatBtn(); renderAmt(); renderHeader();
     }
   }catch(e){ if(!handleAuthErr(e)) toast(e.message||'保存失败'); }
   finally{ saving=false; btn.disabled=false; }
@@ -152,15 +162,15 @@ function resetRecordState(){
   editingId=null; setEditMode(false);
   entryType='expense';
   document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t==='expense'));
-  selectedCat=null; amtStr='';
-  buildCatSheet(); renderAmt();
+  selectedCat=null; amtStr=''; oneTime=false;
+  buildCatSheet(); renderAmt(); syncOneTimeUI();
 }
 function editEntry(id){
   const e=entries.find(x=>x.id===id); if(!e) return;
-  editingId=id; entryType=e.type;
+  editingId=id; entryType=e.type; oneTime=!!e.oneTime;
   document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.t===entryType));
   selectedCat=e.cat; curDate=e.date; amtStr=String(e.amt);
-  buildCatSheet(); syncCatBtn(); renderAmt(); renderDate(); setEditMode(true);
+  buildCatSheet(); syncCatBtn(); renderAmt(); renderDate(); syncOneTimeUI(); setEditMode(true);
   switchView('record');
 }
 
@@ -185,22 +195,50 @@ function catCard(list,title){
 }
 function dayEntries(list){
   const items=list.slice().sort((a,b)=>a.id<b.id?1:-1);
-  return items.map(e=>`<div class="entry${isIncome(e)?' income':''}" data-id="${e.id}"><span class="ec">${e.cat}</span><span class="ea num">${isIncome(e)?'+':''}¥${fmt(e.amt)}</span><button class="del" data-id="${e.id}" aria-label="删除">${TRASH}</button></div>`).join('');
+  return items.map(e=>{
+    const tag = e.oneTime ? '<span class="otag">一次性</span>' : '';
+    return `<div class="entry${isIncome(e)?' income':''}${e.oneTime?' onetime':''}" data-id="${e.id}"><span class="ec">${e.cat}${tag}</span><span class="ea num">${isIncome(e)?'+':''}¥${fmt(e.amt)}</span><button class="del" data-id="${e.id}" aria-label="删除">${TRASH}</button></div>`;
+  }).join('');
 }
 function periodRow(key,label,o){
   if(isOwner){
-    const net=round2(o.inc-o.exp);
-    return `<div class="drillrow" data-${key.k}="${key.v}"><div class="dl"><div class="dd">${label}</div><div class="io"><span class="in">收 ¥${fmt(o.inc)}</span> · 支 ¥${fmt(o.exp)}</div></div><div class="dv num">¥${fmt(net)}</div><div class="ch">›</div></div>`;
+    const net=round2(o.inc-o.exp); // 净利 = 收 − 日常支出（不含一次性）
+    const oneNote = o.one>0 ? ` · <span class="one">一次性 ¥${fmt(o.one)}</span>` : '';
+    return `<div class="drillrow" data-${key.k}="${key.v}"><div class="dl"><div class="dd">${label}</div><div class="io"><span class="in">收 ¥${fmt(o.inc)}</span> · 支 ¥${fmt(o.exp)}${oneNote}</div></div><div class="dv num">¥${fmt(net)}</div><div class="ch">›</div></div>`;
   }
   return `<div class="drillrow" data-${key.k}="${key.v}"><div class="dl"><div class="dd">${label}</div></div><div class="dv num">¥${fmt(o.exp)}</div><div class="ch">›</div></div>`;
 }
+// 聚合：一次性支出单独累到 o.one，不进 o.exp（保证净利与月利润口径一致）
+function bucket(m,k,e){ const o=m[k]=m[k]||{inc:0,exp:0,one:0}; if(isIncome(e))o.inc+=e.amt; else if(e.oneTime)o.one+=e.amt; else o.exp+=e.amt; return m; }
 function dayDrill(list){
-  const m={}; list.forEach(e=>{ const o=m[e.date]=m[e.date]||{inc:0,exp:0}; if(isIncome(e))o.inc+=e.amt; else o.exp+=e.amt; });
+  const m={}; list.forEach(e=>bucket(m,e.date,e));
   return Object.keys(m).sort().reverse().map(d=>periodRow({k:'day',v:d},`${mdShort(d)} ${weekday(d)}`,m[d])).join('');
 }
 function monthDrill(list){
-  const m={}; list.forEach(e=>{ const k=e.date.slice(0,7); const o=m[k]=m[k]||{inc:0,exp:0}; if(isIncome(e))o.inc+=e.amt; else o.exp+=e.amt; });
+  const m={}; list.forEach(e=>bucket(m,e.date.slice(0,7),e));
   return Object.keys(m).sort().map(k=>periodRow({k:'month',v:k},`${parseInt(k.split('-')[1])}月`,m[k])).join('');
+}
+
+// 累计回本进度：用「累计经营利润」回收「累计一次性投入」。仅老板、有投入才显示。
+// 跨全部时间，不随当前查看的周期变化——这是"装修花的钱赚回来没"的总览。
+function renderPayback(){
+  const card=document.getElementById('paybackCard'); if(!card) return;
+  if(!isOwner){ card.classList.add('hidden'); return; }
+  const invested=entries.filter(e=>!isIncome(e)&&e.oneTime).reduce((s,e)=>s+e.amt,0);
+  if(!(invested>0)){ card.classList.add('hidden'); card.innerHTML=''; return; }
+  const allInc=entries.filter(isIncome).reduce((s,e)=>s+e.amt,0);
+  const allOp=entries.filter(e=>!isIncome(e)&&!e.oneTime).reduce((s,e)=>s+e.amt,0);
+  const earned=round2(allInc-allOp);                 // 累计经营利润
+  const recovered=Math.max(0,Math.min(earned,invested));
+  const pct=Math.round(recovered/invested*100);
+  const done=earned>=invested;
+  let ps;
+  if(done) ps=`已赚回 ¥${fmt(invested)} 投入，之后净赚 ¥${fmt(round2(earned-invested))}`;
+  else if(earned<=0) ps=`已投入 ¥${fmt(invested)}，开始盈利后这里显示进度`;
+  else ps=`已回收 ¥${fmt(recovered)} / ¥${fmt(invested)} · 还差 ¥${fmt(round2(invested-earned))}`;
+  card.innerHTML=`<div class="pt"><span>${done?'已回本 🎉':'回本进度'}</span><b>${pct}%</b></div><div class="bar"><i style="width:${Math.max(2,Math.min(100,pct))}%"></i></div><div class="ps">${ps}</div>`;
+  card.classList.toggle('done',done);
+  card.classList.remove('hidden');
 }
 
 function renderTotals(){
@@ -209,20 +247,24 @@ function renderTotals(){
   else if(gran==='month'){ list=entries.filter(e=>e.date.slice(0,7)===viewMonth); const p=viewMonth.split('-'); label=p[0]+'年'+parseInt(p[1])+'月'; if(viewMonth===today.slice(0,7))tag='本月'; per='本月'; }
   else{ list=entries.filter(e=>e.date.slice(0,4)===viewYear); label=viewYear+'年'; if(viewYear===today.slice(0,4))tag='今年'; per='本年'; }
 
-  const exp=list.filter(e=>!isIncome(e));
+  // 一次性支出（装修/大件）不计入经营利润，单独统计
+  const opExp=list.filter(e=>!isIncome(e)&&!e.oneTime); // 日常支出（计入利润）
+  const oneTimeExp=list.filter(e=>!isIncome(e)&&e.oneTime).reduce((s,e)=>s+e.amt,0);
   const income=list.filter(isIncome).reduce((s,e)=>s+e.amt,0);
-  const expense=exp.reduce((s,e)=>s+e.amt,0);
+  const expense=opExp.reduce((s,e)=>s+e.amt,0);
   document.getElementById('perTxt').innerHTML=label+(tag?` <span class="curtag">${tag}</span>`:'');
 
   const sub=document.querySelector('.bigtotal .profitsub');
   if(isOwner){
-    const profit=round2(income-expense);
+    const profit=round2(income-expense); // 利润 = 收入 − 日常支出（不含一次性）
     const margin= income>0 ? Math.round(profit/income*1000)/10 : null;
     document.getElementById('totLab').textContent=per+'利润';
     document.getElementById('perProfit').textContent=fmt(profit);
     document.getElementById('perIncome').textContent=fmt(income);
     document.getElementById('perExpense').textContent=fmt(expense);
     document.getElementById('perMargin').textContent= margin==null ? '—' : margin+'%';
+    const otWrap=document.getElementById('perOneTimeWrap');
+    if(otWrap){ otWrap.classList.toggle('hidden', !(oneTimeExp>0)); document.getElementById('perOneTime').textContent=fmt(oneTimeExp); }
     if(sub) sub.style.display='';
   } else {
     document.getElementById('totLab').textContent=per+'支出';
@@ -230,13 +272,15 @@ function renderTotals(){
     if(sub) sub.style.display='none';
   }
 
+  renderPayback(); // 累计回本进度（仅老板、有一次性投入时显示）
+
   const body=document.getElementById('totalsBody');
   if(list.length===0){ const w=gran==='day'?'这天':(gran==='month'?'这个月':'这一年'); const hint=isOwner?'记一笔收入和支出，就能看到利润。':''; body.innerHTML=`<div class="empty">${w}还没有记账。${hint?'<br>'+hint:''}</div>`; return; }
 
   let html='';
   if(gran==='day'){ html+=dayEntries(list); }
-  else if(gran==='month'){ if(exp.length) html+=catCard(exp,'支出构成'); html+='<div class="seclabel" style="margin-top:2px;">按天（点开看明细）</div>'+dayDrill(list); }
-  else{ html+='<div class="seclabel" style="margin-top:2px;">按月（点开看明细）</div>'+monthDrill(list); if(exp.length) html+=catCard(exp,'全年支出构成'); }
+  else if(gran==='month'){ if(opExp.length) html+=catCard(opExp,'支出构成'); html+='<div class="seclabel" style="margin-top:2px;">按天（点开看明细）</div>'+dayDrill(list); }
+  else{ html+='<div class="seclabel" style="margin-top:2px;">按月（点开看明细）</div>'+monthDrill(list); if(opExp.length) html+=catCard(opExp,'全年支出构成'); }
   body.innerHTML=html;
 
   if(gran==='day'){
@@ -258,7 +302,7 @@ async function delEntry(id){
 }
 async function undoDelete(removed){
   try{
-    const { entry }=await api.entries.create({type:removed.type,date:removed.date,cat:removed.cat,amt:removed.amt});
+    const { entry }=await api.entries.create({type:removed.type,date:removed.date,cat:removed.cat,amt:removed.amt,oneTime:removed.oneTime});
     entries.push(entry); renderTotals(); renderHeader();
   }catch(e){ if(!handleAuthErr(e)) toast('撤销失败'); }
 }
@@ -304,6 +348,7 @@ function toast(msg,actLabel,actFn){
 function bindEvents(){
   document.getElementById('saveBtn').onclick=doSave;
   document.getElementById('cancelEdit').onclick=()=>switchView('totals');
+  document.getElementById('oneTimeChk').onchange=e=>{ oneTime=e.target.checked; syncOneTimeUI(); };
   document.getElementById('dateInput').onchange=e=>{ curDate=e.target.value||todayStr(); renderDate(); };
   document.querySelectorAll('#typeSeg button').forEach(b=>b.onclick=()=>setEntryType(b.dataset.t));
   document.querySelectorAll('#granSeg button').forEach(b=>b.onclick=()=>setGran(b.dataset.g));
@@ -332,6 +377,7 @@ function applyRoleUI(){
   const edit=document.getElementById('catEdit');
   if(edit) edit.classList.toggle('hidden', !isOwner);
   if(!isOwner) entryType='expense';
+  syncOneTimeUI(); // 员工 / 收入 时隐藏「一次性」开关
 }
 
 async function init(){

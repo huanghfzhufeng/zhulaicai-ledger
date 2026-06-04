@@ -156,3 +156,35 @@ test('entries can be edited, with role limits', async () => {
   assert.equal((await call('PATCH', `/api/entries/${sc.data.entry.id}`, { body: { type: 'expense', date: '2026-06-03', cat: '配料', amt: 25 }, j: staff.j })).status, 200);
   assert.equal((await call('PATCH', `/api/entries/${sc.data.entry.id}`, { body: { type: 'income', date: '2026-06-03', cat: '营业额', amt: 5 }, j: staff.j })).status, 403);
 });
+
+test('one-time expense flag: owner-only, expense-only, editable', async () => {
+  const owner = await login('boss', 'boss123');
+  const staff = await login('clerk', 'clerk123');
+
+  // 老板：标「一次性」的装修支出 → oneTime=true
+  const one = await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-04', cat: '配料', amt: 5000, oneTime: true }, j: owner.j });
+  assert.equal(one.status, 201);
+  assert.equal(one.data.entry.oneTime, true);
+
+  // 普通支出默认 oneTime=false（老数据/不传也一样）
+  const normal = await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-04', cat: '煤气', amt: 100 }, j: owner.j });
+  assert.equal(normal.data.entry.oneTime, false);
+
+  // 收入即使传 oneTime:true 也被忽略（一次性只对支出有意义）
+  const inc = await call('POST', '/api/entries', { body: { type: 'income', date: '2026-06-04', cat: '营业额', amt: 200, oneTime: true }, j: owner.j });
+  assert.equal(inc.data.entry.oneTime, false);
+
+  // 编辑：把一次性取消 / 再打开都生效
+  const off = await call('PATCH', `/api/entries/${one.data.entry.id}`, { body: { type: 'expense', date: '2026-06-04', cat: '配料', amt: 5000, oneTime: false }, j: owner.j });
+  assert.equal(off.data.entry.oneTime, false);
+  const on = await call('PATCH', `/api/entries/${one.data.entry.id}`, { body: { type: 'expense', date: '2026-06-04', cat: '配料', amt: 5000, oneTime: true }, j: owner.j });
+  assert.equal(on.data.entry.oneTime, true);
+
+  // 员工无权标一次性：即便传 oneTime:true，也被强制为 false
+  const se = await call('POST', '/api/entries', { body: { type: 'expense', date: '2026-06-04', cat: '煤气', amt: 30, oneTime: true }, j: staff.j });
+  assert.equal(se.status, 201);
+  assert.equal(se.data.entry.oneTime, false);
+  // 员工编辑也不能打开一次性
+  const su = await call('PATCH', `/api/entries/${se.data.entry.id}`, { body: { type: 'expense', date: '2026-06-04', cat: '配料', amt: 30, oneTime: true }, j: staff.j });
+  assert.equal(su.data.entry.oneTime, false);
+});

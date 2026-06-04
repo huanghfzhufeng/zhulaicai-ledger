@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS entries (
   entry_date   TEXT    NOT NULL,
   category     TEXT    NOT NULL,
   amount_cents INTEGER NOT NULL,
+  one_time     INTEGER NOT NULL DEFAULT 0,
   created_at   INTEGER NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -56,6 +57,10 @@ function migrate(db) {
   const entryCols = db.prepare("PRAGMA table_info('entries')").all().map((c) => c.name);
   if (!entryCols.includes('type')) {
     db.exec("ALTER TABLE entries ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
+  }
+  if (!entryCols.includes('one_time')) {
+    // 一次性支出（装修/大件）：1=不计入月利润，单独统计
+    db.exec('ALTER TABLE entries ADD COLUMN one_time INTEGER NOT NULL DEFAULT 0');
   }
   const userCols = db.prepare("PRAGMA table_info('users')").all().map((c) => c.name);
   if (!userCols.includes('role')) {

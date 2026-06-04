@@ -21,12 +21,13 @@ entriesRouter.get('/', (req, res) => {
 });
 
 entriesRouter.post('/', (req, res) => {
-  const { type, date, category, amountCents } = validateEntryInput(req.body);
+  const { type, date, category, amountCents, oneTime } = validateEntryInput(req.body);
   if (!categoryExists(type, category)) throw new ApiError(400, '类别不存在');
   if (isStaff(req) && !(type === 'expense' && isStaffExpenseCategory(category))) {
     throw new ApiError(403, '员工只能记日常经营支出');
   }
-  const entry = createEntry({ userId: req.user.id, type, date, category, amountCents });
+  // 员工不能标一次性投入（那是老板的事）
+  const entry = createEntry({ userId: req.user.id, type, date, category, amountCents, oneTime: !isStaff(req) && oneTime });
   return ok(res, { entry }, 201);
 });
 
@@ -38,13 +39,13 @@ entriesRouter.patch('/:id', (req, res) => {
   // 员工对自己看不到的记录一律当作"不存在"
   if (!existing || (isStaff(req) && !staffCanTouch(existing))) throw new ApiError(404, '记录不存在');
 
-  const { type, date, category, amountCents } = validateEntryInput(req.body);
+  const { type, date, category, amountCents, oneTime } = validateEntryInput(req.body);
   if (!categoryExists(type, category)) throw new ApiError(400, '类别不存在');
   if (isStaff(req) && !(type === 'expense' && isStaffExpenseCategory(category))) {
     throw new ApiError(403, '员工只能记日常经营支出');
   }
 
-  const entry = updateEntry(id, { type, date, category, amountCents });
+  const entry = updateEntry(id, { type, date, category, amountCents, oneTime: !isStaff(req) && oneTime });
   return ok(res, { entry });
 });
 
