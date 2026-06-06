@@ -219,28 +219,6 @@ function monthDrill(list){
   return Object.keys(m).sort().map(k=>periodRow({k:'month',v:k},`${parseInt(k.split('-')[1])}月`,m[k])).join('');
 }
 
-// 累计回本进度：用「累计经营利润」回收「累计一次性投入」。仅老板、有投入才显示。
-// 跨全部时间，不随当前查看的周期变化——这是"装修花的钱赚回来没"的总览。
-function renderPayback(){
-  const card=document.getElementById('paybackCard'); if(!card) return;
-  if(!isOwner){ card.classList.add('hidden'); return; }
-  const invested=entries.filter(e=>!isIncome(e)&&e.oneTime).reduce((s,e)=>s+e.amt,0);
-  if(!(invested>0)){ card.classList.add('hidden'); card.innerHTML=''; return; }
-  const allInc=entries.filter(isIncome).reduce((s,e)=>s+e.amt,0);
-  const allOp=entries.filter(e=>!isIncome(e)&&!e.oneTime).reduce((s,e)=>s+e.amt,0);
-  const earned=round2(allInc-allOp);                 // 累计经营利润
-  const recovered=Math.max(0,Math.min(earned,invested));
-  const pct=Math.round(recovered/invested*100);
-  const done=earned>=invested;
-  let ps;
-  if(done) ps=`已赚回 ¥${fmt(invested)} 投入，之后净赚 ¥${fmt(round2(earned-invested))}`;
-  else if(earned<=0) ps=`已投入 ¥${fmt(invested)}，开始盈利后这里显示进度`;
-  else ps=`已回收 ¥${fmt(recovered)} / ¥${fmt(invested)} · 还差 ¥${fmt(round2(invested-earned))}`;
-  card.innerHTML=`<div class="pt"><span>${done?'已回本 🎉':'回本进度'}</span><b>${pct}%</b></div><div class="bar"><i style="width:${Math.max(2,Math.min(100,pct))}%"></i></div><div class="ps">${ps}</div>`;
-  card.classList.toggle('done',done);
-  card.classList.remove('hidden');
-}
-
 function renderTotals(){
   const today=todayStr(); let label='',tag='',list=[],per='';
   if(gran==='day'){ list=entries.filter(e=>e.date===viewDay); label=ymdLabel(viewDay); if(viewDay===today)tag='今天'; per='当日'; }
@@ -271,8 +249,6 @@ function renderTotals(){
     document.getElementById('perProfit').textContent=fmt(expense);
     if(sub) sub.style.display='none';
   }
-
-  renderPayback(); // 累计回本进度（仅老板、有一次性投入时显示）
 
   const body=document.getElementById('totalsBody');
   if(list.length===0){ const w=gran==='day'?'这天':(gran==='month'?'这个月':'这一年'); const hint=isOwner?'记一笔收入和支出，就能看到利润。':''; body.innerHTML=`<div class="empty">${w}还没有记账。${hint?'<br>'+hint:''}</div>`; return; }
