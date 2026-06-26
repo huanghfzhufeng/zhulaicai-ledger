@@ -91,6 +91,7 @@ main{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:14px 14p
 .bigtotal .val{font-size:34px; font-weight:700; margin-top:2px;}
 .bigtotal .profitsub{display:flex; justify-content:center; gap:14px; margin-top:8px; font-size:12px; opacity:.92; flex-wrap:wrap;}
 .bigtotal .profitsub b{font-weight:700;}
+.profitcap{text-align:center; font-size:12px; color:var(--muted); margin:-8px 4px 16px; line-height:1.4;}
 
 .entry.income .ea{color:var(--ok);}
 .entry.onetime .ec{color:var(--muted);}

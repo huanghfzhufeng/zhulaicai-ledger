@@ -12,3 +12,6 @@ android-app/build/
 *.apk
 *.jks
 *.idsig
+
+# 真实财务数据导出，不提交
+exports/

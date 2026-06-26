@@ -244,10 +244,15 @@ function renderTotals(){
     const otWrap=document.getElementById('perOneTimeWrap');
     if(otWrap){ otWrap.classList.toggle('hidden', !(oneTimeExp>0)); document.getElementById('perOneTime').textContent=fmt(oneTimeExp); }
     if(sub) sub.style.display='';
+    // 说明利润怎么算 + 一次性不计入（让用户不用自己反推）
+    const cap=document.getElementById('profitCap');
+    if(cap){ cap.textContent='利润 = 收入 − 日常支出'+(oneTimeExp>0?'（一次性投入不计入）':''); cap.classList.remove('hidden'); }
   } else {
     document.getElementById('totLab').textContent=per+'支出';
     document.getElementById('perProfit').textContent=fmt(expense);
     if(sub) sub.style.display='none';
+    const cap=document.getElementById('profitCap');
+    if(cap) cap.classList.add('hidden');
   }
 
   const body=document.getElementById('totalsBody');
