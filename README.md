@@ -1,163 +1,63 @@
-# 朱来财大排档 · 记账
+# 朱来财记账 · 面向小店与家庭的轻量多端共享记账系统
 
-一个面向大排档/小店的每日开支记账应用。原本是纯前端单页（数据存在浏览器里，换设备就丢），现已改造为**可长期运行的全栈应用**：
+> 从给实体大排档解决真实每日收支与利润核算痛点演化而来的全栈记账应用——零构建前端、Express 5 + SQLite WAL 持久层、Scrypt 加盐认证，附带 PWA 与原生 Android 套壳源码，一台低配服务器即可长期稳跑。
 
-- 🔐 **固定账号登录** —— 内部使用，全店共用一本账（无公开注册，账号在 `.env` 配置）
-- 🗄️ **SQLite 持久化** —— 数据存在服务器，换手机登录同一账号即可看到
-- 📱 移动端优先的记账界面：类别下拉选择、数字键盘、按天/月/年统计
-- ♻️ 长期运行：优雅关闭、会话自动过期清理、WAL 模式
+<p align="center">
+  <img src="./docs/images/app-preview.png" alt="朱来财记账 iPhone 18 Pro Max 三屏界面预览" width="100%" />
+</p>
 
-## 技术栈
+## 为什么做这个项目
 
-| 层 | 选型 |
-|----|------|
-| 运行时 | Node.js ≥ 20（开发于 Node 25）|
-| Web 框架 | Express 5 |
-| 数据库 | SQLite（`better-sqlite3`，自动回退到内置 `node:sqlite`）|
-| 密码 | Node 内置 `crypto.scrypt`（加盐哈希）|
-| 会话 | 随机令牌存数据库（仅存哈希），重启不掉登录 |
-| 前端 | 原生 HTML/CSS/ES Module，无构建步骤 |
+很多实体小店、大排档或家庭记账面临两个现实问题：
+- 市面通用记账 App 广告多、功能臃肿，而且不支持**多部手机实时共用同一本账**；
+- 自己随便写的纯前端单页把数据存在 `localStorage`，换手机或清缓存账目直接归零。
+
+**朱来财记账**用最克制的技术栈给出了一个可长期运行的工程答案：手机秒开、数字键盘 3 秒记一笔、老板与员工权限分离（老板看收入与利润率，员工仅记日常支出）、服务端 SQLite WAL 持久化，随时备份、随时迁移。
+
+## 核心特性
+
+- **多端实时共享同一本账**：无公开注册，固定账号通过 `.env` 配置，多台手机登录即同步。
+- **老板 / 员工角色分级**：老板端支持收入、日常支出、一次性大额投入（装修/设备不计入日常利润）与分类管理；员工端仅开放支出记账。
+- **日 / 月 / 年利润与支出构成**：自动汇总总收入、日常支出、净利润、利润率与分类占比条，按天展开明细。
+- **移动端优先 + 双端交付**：原生响应式 HTML/CSS/ES Module（支持 PWA 添加到主屏幕），仓库内置 `android-app/` Android WebView 打包工程。
+- **工程化长期运行**：`crypto.scrypt` 加盐密码哈希、会话令牌哈希入库、SQLite WAL 模式、优雅关闭与过期会话自动清理。
+
+## 技术架构
+
+| 层级 | 选型与说明 |
+|---|---|
+| 运行时 | Node.js ≥ 20 |
+| Web 服务 | Express 5 |
+| 数据库 | SQLite（`better-sqlite3`，WAL 模式，自动回退内置 `node:sqlite`） |
+| 认证安全 | `crypto.scrypt` 加盐哈希 + 数据库会话令牌（仅存哈希） |
+| 前端 | 原生 HTML / CSS / ES Module，零构建步骤，支持 PWA |
+| 移动端壳 | `android-app/` 原生 Android WebView 工程 |
 
 ## 快速开始
 
 ```bash
-# 1. 安装依赖
+# 1. 克隆并安装依赖
+git clone https://github.com/huanghfzhufeng/zhulaicai-ledger.git
+cd zhulaicai-ledger
 npm install
 
-# 2. 启动
+# 2. 复制环境变量模板并配置账号
+cp .env.example .env
+# 编辑 .env，设置端口、老板/员工账号与初始密码
+
+# 3. 启动服务
 npm start
-# 或开发模式（改动自动重启）
-npm run dev
 ```
 
-打开浏览器访问 <http://localhost:3000> ，用固定账号登录：
+启动后访问 `http://127.0.0.1:3000` 即可使用。生产环境部署（Nginx / PM2 / HTTPS / Android APK 打包）详见 [DEPLOY.md](./DEPLOY.md)。
 
-- 默认账号：`zhulaicai`　默认密码：`zhulaicai888`
-- ⚠️ 请尽快在 `.env` 设置 `LEDGER_PASSWORD` 改成自己的密码（改完重启即生效）
+## 目录结构
 
-账号在首次启动时自动创建。数据库文件默认生成在 `./data/ledger.db`。
-
-## 配置
-
-所有配置通过环境变量（可放进 `.env`，参考 [`.env.example`](.env.example)）：
-
-| 变量 | 默认 | 说明 |
-|------|------|------|
-| `PORT` | `3000` | 监听端口 |
-| `HOST` | `0.0.0.0` | 监听地址 |
-| `DB_PATH` | `./data/ledger.db` | SQLite 文件路径 |
-| `NODE_ENV` | `development` | `production` 时自动开启安全 Cookie |
-| `COOKIE_SECURE` | 跟随 `NODE_ENV` | 仅 HTTPS 访问时设 `true` |
-| `TRUST_PROXY` | `false` | 部署在 nginx/caddy 之后时设 `true` |
-| `SESSION_TTL_DAYS` | `30` | 登录有效期（天）|
-| `LEDGER_USERNAME` | `zhulaicai` | 固定登录账号 |
-| `LEDGER_PASSWORD` | `zhulaicai888` | 固定登录密码（**务必修改**）|
-
-> ⚠️ 通过 HTTPS 对外提供服务时，请设置 `COOKIE_SECURE=true`，否则浏览器不会保存登录状态。
->
-> 🔑 改 `LEDGER_PASSWORD` 后重启会自动更新密码；改 `LEDGER_USERNAME` 会新建一个空账号（旧账号数据仍在旧用户名下）。
-
-## 长期运行（生产部署）
-
-### 方式一：PM2（推荐）
-
-```bash
-npm install -g pm2
-NODE_ENV=production pm2 start src/server.js --name zhulaicai-ledger
-pm2 save          # 保存进程列表
-pm2 startup       # 生成开机自启脚本，按提示执行
+```text
+├── public/          # 移动端优先前端（登录、记账、统计、PWA）
+├── src/             # Express 5 服务端、认证中间件、SQLite 数据层
+├── android-app/     # Android WebView 套壳工程源码
+├── deploy/          # 服务器初始化脚本
+├── test/            # 后端与接口测试
+└── DEPLOY.md        # 生产环境部署与打包说明
 ```
-
-### 方式二：systemd
-
-新建 `/etc/systemd/system/zhulaicai-ledger.service`：
-
-```ini
-[Unit]
-Description=Zhulaicai Ledger
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/zhulaicai-ledger
-ExecStart=/usr/bin/node src/server.js
-Environment=NODE_ENV=production
-Environment=PORT=3000
-Restart=always
-User=www-data
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl enable --now zhulaicai-ledger
-```
-
-进程收到 `SIGTERM`/`SIGINT` 会优雅关闭（先停接新请求，再关数据库）。
-
-### 数据备份
-
-数据全部在 SQLite 文件里。定期备份 `data/` 目录即可（WAL 模式下连同 `-wal`/`-shm` 一起备份，或先停服务再拷贝）：
-
-```bash
-# 在线一致性备份
-sqlite3 data/ledger.db ".backup data/backup-$(date +%F).db"
-```
-
-## 项目结构
-
-```
-src/
-  server.js          启动 / 优雅关闭 / 定时清理
-  app.js             Express 装配、中间件、安全头、错误处理
-  config.js          环境变量配置
-  db/
-    index.js         数据库连接（驱动自动检测）+ PRAGMA
-    schema.js        建表语句（幂等）
-  auth/
-    password.js      scrypt 哈希 / 校验
-    sessions.js      会话令牌的创建 / 查询 / 销毁
-    middleware.js    attachUser / requireAuth
-    seed.js          启动时自动创建/同步固定账号
-  models/
-    users.js         用户数据访问
-    entries.js       账目数据访问
-  routes/
-    auth.js          /api/auth/*
-    entries.js       /api/entries/*
-  lib/
-    http.js          统一响应封装 + ApiError
-    validation.js    输入校验
-    categories.js    分类（单一数据源）
-    rate-limit.js    登录限流
-public/
-  index.html         记账主界面
-  login.html         登录页
-  css/ js/           样式与前端逻辑
-test/
-  api.test.js        接口集成测试
-```
-
-## API 一览
-
-所有响应统一为 `{ success, data, error }`。除标注外均需登录（Cookie 会话）。
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| `POST` | `/api/auth/login` | 登录 |
-| `POST` | `/api/auth/logout` | 登出 |
-| `GET` | `/api/auth/me` | 当前用户 |
-| `GET` | `/api/categories` | 分类列表（公开）|
-| `GET` | `/api/entries` | 全部账目 |
-| `POST` | `/api/entries` | 新增一笔 `{ date, cat, amt }` |
-| `DELETE` | `/api/entries/:id` | 删除一笔 |
-
-> 内部工具，无公开注册接口；账号由 `.env` 配置并在启动时自动创建。
-
-## 测试
-
-```bash
-npm test
-```
-
-覆盖：固定账号登录/登出、账目增删查、输入校验、未登录拦截、注册接口已下线。

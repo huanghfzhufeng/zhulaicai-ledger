@@ -14,7 +14,7 @@ import android.webkit.WebViewClient;
  */
 public class MainActivity extends Activity {
 
-    private static final String URL = "http://1.15.122.48/";
+    private static final String URL = "http://YOUR_SERVER_IP/";
     private WebView web;
 
     @Override

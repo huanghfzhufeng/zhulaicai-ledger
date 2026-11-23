@@ -8,7 +8,7 @@
 
 | 方式 | 网址 | 苹果手机 | 安卓手机 | 安全 | 门槛 |
 |------|------|----------|----------|------|------|
-| **HTTP（直接用 IP）** | `http://1.15.122.48` | ✅ 加到主屏幕、全屏，像 App | ⚠️ 能加到桌面，但点开是浏览器 | 密码明文传输 | 立刻可用 |
+| **HTTP（直接用 IP）** | `http://YOUR_SERVER_IP` | ✅ 加到主屏幕、全屏，像 App | ⚠️ 能加到桌面，但点开是浏览器 | 密码明文传输 | 立刻可用 |
 | **HTTPS（绑域名）** | `https://你的域名` | ✅ 完整 App 体验 | ✅ 可"安装应用"、全屏 | 加密 | 需域名 + **备案**（国内约 1-2 周） |
 
 > 国内服务器绑域名必须**备案**（在腾讯云申请，免费但要时间）。用 IP 直连不用备案，可以先跑起来用着，之后再升级 HTTPS。
@@ -33,7 +33,7 @@ sudo bash deploy/setup-server.sh     # 装 Node 22 + pm2，放行系统防火墙
 
 ```bash
 rsync -az --delete --exclude node_modules --exclude data --exclude .git \
-  ./ root@1.15.122.48:/opt/zhulaicai-ledger/
+  ./ root@YOUR_SERVER_IP:/opt/zhulaicai-ledger/
 ```
 
 ### 3. 配置账号密码
@@ -64,7 +64,7 @@ pm2 startup                       # 按提示再执行一行命令 → 开机自
 
 ### 6. 验证
 
-手机或电脑浏览器打开 **http://1.15.122.48** ，用上面的账号登录即可。
+手机或电脑浏览器打开 **http://YOUR_SERVER_IP** ，用上面的账号登录即可。
 
 ---
 
@@ -103,7 +103,7 @@ sqlite3 data/ledger.db ".backup data/backup-$(date +%F).db"
 
 ## 五、升级到 HTTPS（绑域名，可选，体验最佳）
 
-1. 买域名（约￥30/年），在腾讯云完成**备案**（解析到 1.15.122.48）。
+1. 买域名（约￥30/年），在腾讯云完成**备案**（解析到 YOUR_SERVER_IP）。
 2. 装 Caddy（自动申请并续期免费证书，最省心）：
    ```bash
    dnf install -y caddy   # 或参考 caddyserver.com 官方安装
@@ -134,14 +134,14 @@ bash android-app/build-apk.sh      # 生成 android-app/zhulaicai-ledger.apk
 
 打好的 APK 已放到服务器，店员直接下载安装：
 
-- 下载地址：**http://1.15.122.48/zhulaicai-ledger.apk**
+- 下载地址：**http://YOUR_SERVER_IP/zhulaicai-ledger.apk**
 - 安卓手机浏览器打开 → 下载 → 点开安装（首次需允许「未知来源/未知应用」安装；国产手机可能弹安全提示，选「继续安装」）
 
-> ⚠️ App 里的网址（`http://1.15.122.48`）写死在 [android-app/java/com/zhulaicai/ledger/MainActivity.java](android-app/java/com/zhulaicai/ledger/MainActivity.java)。
+> ⚠️ App 里的网址（`http://YOUR_SERVER_IP`）写死在 [android-app/java/com/zhulaicai/ledger/MainActivity.java](android-app/java/com/zhulaicai/ledger/MainActivity.java)。
 > **网页内容更新不用重装**（壳只是加载网页）；只有**换了服务器地址/域名**时，才需改这里的 URL → 重新 `build-apk.sh` → 重新上传替换。
 
 上传到服务器的命令（本机）：
 ```bash
-scp android-app/zhulaicai-ledger.apk root@1.15.122.48:/opt/zhulaicai-ledger/public/
+scp android-app/zhulaicai-ledger.apk root@YOUR_SERVER_IP:/opt/zhulaicai-ledger/public/
 ```
 
